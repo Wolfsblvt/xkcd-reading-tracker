@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "xkcd Reading Tracker",
+  "short_name": "xkcd Tracker",
+  "version": "0.1.0",
+  "description": "Track read, favorite, rated, and unread xkcd comics directly on xkcd.com.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://xkcd.com/*",
+    "https://www.xkcd.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "xkcd Reading Tracker",
+    "default_popup": "src/popup/popup.html"
+  },
+  "options_page": "src/dashboard/dashboard.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://xkcd.com/*",
+        "https://www.xkcd.com/*"
+      ],
+      "css": [
+        "src/content/content.css"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content/page.js",
+        "src/shared/*.js",
+        "src/storage/*.js"
+      ],
+      "matches": [
+        "https://xkcd.com/*",
+        "https://www.xkcd.com/*"
+      ]
+    }
+  ]
+}
+
