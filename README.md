@@ -12,8 +12,9 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Keep a dedicated continue-reading point.
 - Browse normal xkcd, unread comics, or favorite comics.
 - Optionally add quick read/favorite toggles to xkcd's own navigation bars.
+- Use xkcd-style nav labels (`Got it`, `Neat`, `Huh?`) or generic labels.
 - Show xkcd alt text below the comic or after active-viewing delay.
-- Open the matching Explain xkcd page with a small `Huh?` link.
+- Open the matching Explain xkcd page with a small `Huh?` or `Explain` link.
 - View reading progress and unread ranges.
 - Jump to unread range starts/ends and set a range as the next reading anchor.
 - Bulk mark comic numbers or ranges.

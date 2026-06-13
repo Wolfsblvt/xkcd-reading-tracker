@@ -190,6 +190,7 @@ function renderActiveComicSection() {
 
   const state = getComicState(snapshot.comics, activeComic.id);
   const isContinuePoint = snapshot.meta.continuePoint === activeComic.id;
+  const canSetContinuePoint = !state.read && !isContinuePoint;
   section.append(element('p', { text: `#${activeComic.id}${activeComic.title ? `: ${activeComic.title}` : ''}` }));
   const row = element('div', { className: 'row' });
   row.append(
@@ -202,13 +203,17 @@ function renderActiveComicSection() {
       snapshot = await storageService.updateComicState(activeComic.id, { favorite: !state.favorite });
       await refresh();
     }, { pressed: state.favorite, title: state.favorite ? 'Remove the active comic from favorites' : 'Add the active comic to favorites' }),
-    button('Continue here', async () => {
+    button('Continue', async () => {
       await storageService.setContinuePoint(activeComic.id);
       await refresh();
     }, {
-      disabled: isContinuePoint,
+      disabled: !canSetContinuePoint,
       pressed: isContinuePoint,
-      title: isContinuePoint ? 'The active comic is already the continue point' : 'Set the active comic as the continue point',
+      title: isContinuePoint
+        ? 'The active comic is already the continue point'
+        : state.read
+          ? 'Read comics cannot be set as the continue point'
+          : 'Set the active unread comic as the continue point',
     })
   );
   section.append(row);

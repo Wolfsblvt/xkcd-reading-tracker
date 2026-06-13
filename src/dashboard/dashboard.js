@@ -391,6 +391,8 @@ function renderSettings() {
   updateBothNavBars.checked = settings.navigation.updateBothNavBars;
   const showPageNavActions = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   showPageNavActions.checked = settings.navigation.showPageNavActions;
+  const useXkcdStyleLabels = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
+  useXkcdStyleLabels.checked = settings.navigation.useXkcdStyleLabels;
   const badgeEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   badgeEnabled.checked = settings.badge.enabled;
   const checkEveryMinutes = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'number', min: '30', max: '10080', value: String(settings.badge.checkEveryMinutes) } }));
@@ -426,6 +428,7 @@ function renderSettings() {
         showExplainLink: showExplainLink.checked,
         updateBothNavBars: updateBothNavBars.checked,
         showPageNavActions: showPageNavActions.checked,
+        useXkcdStyleLabels: useXkcdStyleLabels.checked,
       },
       badge: {
         enabled: badgeEnabled.checked,
@@ -456,6 +459,7 @@ function renderSettings() {
     showExplainLink,
     updateBothNavBars,
     showPageNavActions,
+    useXkcdStyleLabels,
     badgeEnabled,
     checkEveryMinutes,
     theme,
@@ -483,7 +487,7 @@ function renderSettings() {
         })),
         settingItem('Rating control', 'Chooses whether ratings are hidden, dots, or star buttons.', ratingDisplay),
         settingItem('Progress display', 'Controls the progress readout shown on comic pages.', progressDisplay),
-        settingItem('Explain xkcd link', 'Shows the small Huh? link near the alt text.', element('span', {
+        settingItem('Explain xkcd link', 'Shows a small Explain xkcd link near the alt text.', element('span', {
           className: 'inline-field',
           children: [showExplainLink, document.createTextNode('Show link')],
         })),
@@ -494,6 +498,10 @@ function renderSettings() {
         settingItem('Read/Fav nav buttons', 'Injects quick read and favorite toggles into xkcd navigation bars.', element('span', {
           className: 'inline-field',
           children: [showPageNavActions, document.createTextNode('Show in xkcd nav')],
+        })),
+        settingItem('xkcd-style labels', 'Uses Got it, Neat, and Huh? instead of generic labels on comic pages.', element('span', {
+          className: 'inline-field',
+          children: [useXkcdStyleLabels, document.createTextNode('Use playful labels')],
         })),
       ]),
       settingGroup('New Comics', [

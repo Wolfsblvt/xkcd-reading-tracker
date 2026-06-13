@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     showExplainLink: true,
     updateBothNavBars: true,
     showPageNavActions: true,
+    useXkcdStyleLabels: true,
   }),
   badge: Object.freeze({
     enabled: true,
@@ -129,6 +130,7 @@ export function normalizeSettings(value) {
       showExplainLink: normalizeBoolean(navigation.showExplainLink, defaults.navigation.showExplainLink),
       updateBothNavBars: normalizeBoolean(navigation.updateBothNavBars, defaults.navigation.updateBothNavBars),
       showPageNavActions: normalizeBoolean(navigation.showPageNavActions, defaults.navigation.showPageNavActions),
+      useXkcdStyleLabels: normalizeBoolean(navigation.useXkcdStyleLabels, defaults.navigation.useXkcdStyleLabels),
     },
     badge: {
       enabled: normalizeBoolean(badge.enabled, defaults.badge.enabled),

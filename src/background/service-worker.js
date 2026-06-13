@@ -154,6 +154,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'xrt:open-dashboard') {
+    chrome.runtime.openOptionsPage()
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => {
+        logNonFatal(error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    return true;
+  }
+
   return false;
 });
 
@@ -173,4 +183,3 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.tabs?.onRemoved?.addListener((tabId) => {
   chrome.storage.session.remove(getTabModeKey(tabId)).catch(logNonFatal);
 });
-

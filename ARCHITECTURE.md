@@ -104,7 +104,7 @@ Alt text comes from the comic image `title` attribute or fetched metadata. It is
 
 Automatic read marking is a one-shot page-load timer. It does not restart from ordinary re-renders or from clicking tracker controls. Explicit tracker interactions cancel the pending auto-read timer so a deliberate user choice is not overwritten a few seconds later.
 
-Read/favorite controls can also be injected into the xkcd navigation bars, near the controls readers use repeatedly. This is enabled by default but can be disabled for users who prefer the original nav bars to stop moving after extension injection. The full tracker panel keeps the same actions for discoverability and for the rating control.
+Read/favorite controls can also be injected into the xkcd navigation bars, near the controls readers use repeatedly. This is enabled by default but can be disabled for users who prefer the original nav bars to stop moving after extension injection. The injected navigation labels default to xkcd-flavored wording (`Got it`, `Neat`, `Huh?`) and can be changed to generic labels (`Read`, `Fav`, `Explain`). The full tracker panel keeps the obvious `Read` and `Fav` actions for discoverability and for the rating control.
 
 ## Navigation Filtering
 

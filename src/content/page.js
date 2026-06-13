@@ -13,6 +13,19 @@ const NAV_ACTIONS = Object.freeze({
   last: { label: '>|', title: 'Last' },
 });
 
+const LABELS = Object.freeze({
+  themed: Object.freeze({
+    read: 'Got it',
+    favorite: 'Neat',
+    explain: 'Huh?',
+  }),
+  generic: Object.freeze({
+    read: 'Read',
+    favorite: 'Fav',
+    explain: 'Explain',
+  }),
+});
+
 let snapshot = null;
 let currentComic = null;
 let browseMode = BROWSE_MODES.ALL;
@@ -348,6 +361,7 @@ function renderStateControls() {
   const state = getComicState(snapshot.comics, currentComic.id);
   const row = element('div', { className: 'xrt-button-row xrt-state-row' });
   const isContinuePoint = snapshot.meta.continuePoint === currentComic.id;
+  const canSetContinuePoint = !state.read && !isContinuePoint;
   row.append(
     button('Read', async () => {
       cancelAutoReadTimer();
@@ -370,15 +384,19 @@ function renderStateControls() {
       pressed: state.favorite,
       title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites',
     }),
-    button('Set continue here', async () => {
+    button('Continue', async () => {
       cancelAutoReadTimer();
       await storageService.setContinuePoint(currentComic.id);
       await refreshFromStorage();
       showMessage(`Continue point set to #${currentComic.id}.`);
     }, {
-      disabled: isContinuePoint,
+      disabled: !canSetContinuePoint,
       pressed: isContinuePoint,
-      title: isContinuePoint ? 'This comic is already the continue point' : 'Use this comic as the backlog continue point',
+      title: isContinuePoint
+        ? 'This comic is already the continue point'
+        : state.read
+          ? 'Read comics cannot be set as the continue point'
+          : 'Use this unread comic as the backlog continue point',
     })
   );
 
@@ -516,8 +534,9 @@ function renderComicContext() {
   }
 
   if (snapshot.settings.navigation.showExplainLink) {
+    const labels = snapshot.settings.navigation.useXkcdStyleLabels ? LABELS.themed : LABELS.generic;
     wrapper.append(element('a', {
-      text: 'Huh?',
+      text: labels.explain,
       attrs: {
         href: getExplainXkcdUrl(currentComic.id),
         target: '_blank',
@@ -563,13 +582,11 @@ function renderHeader() {
 
 function renderLinks() {
   const row = element('div', { className: 'xrt-link-row' });
-  row.append(element('a', {
-    text: 'Dashboard',
-    attrs: {
-      href: chrome.runtime.getURL('src/dashboard/dashboard.html'),
-      target: '_blank',
-      title: 'Open the full xkcd Reading Tracker dashboard',
-    },
+  row.append(button('Dashboard', async () => {
+    await sendRuntimeMessage({ type: 'xrt:open-dashboard' });
+  }, {
+    className: 'xrt-dashboard-link',
+    title: 'Open the full xkcd Reading Tracker dashboard',
   }));
   return row;
 }
@@ -640,9 +657,10 @@ function renderNavActions(navBar) {
   }
 
   const state = getComicState(snapshot.comics, currentComic.id);
+  const labels = snapshot.settings.navigation.useXkcdStyleLabels ? LABELS.themed : LABELS.generic;
   const actionItems = [
     {
-      text: 'Read',
+      text: labels.read,
       title: state.read ? 'Mark this comic unread' : 'Mark this comic read',
       pressed: state.read,
       action: async () => {
@@ -655,7 +673,7 @@ function renderNavActions(navBar) {
       },
     },
     {
-      text: 'Fav',
+      text: labels.favorite,
       title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites',
       pressed: state.favorite,
       action: async () => {
