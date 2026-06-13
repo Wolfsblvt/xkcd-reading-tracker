@@ -1,7 +1,7 @@
 import { RATING_DISPLAY_MODES } from '../shared/constants.js';
 import { calculateProgress, getComicState, getUnreadComicIds, isValidComicId } from '../shared/comic-state.js';
 import { getComicUrl } from '../shared/navigation.js';
-import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
+import { getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
 import { storageService } from '../storage/storage-service.js';
 
 const app = document.getElementById('app');
@@ -35,11 +35,14 @@ function element(tagName, options = {}) {
 /**
  * @param {string} text
  * @param {() => void | Promise<void>} onClick
- * @param {{ pressed?: boolean, disabled?: boolean }} [options]
+ * @param {{ pressed?: boolean, disabled?: boolean, title?: string }} [options]
  * @returns {HTMLButtonElement}
  */
 function button(text, onClick, options = {}) {
-  const node = /** @type {HTMLButtonElement} */ (element('button', { text, attrs: { type: 'button' } }));
+  const node = /** @type {HTMLButtonElement} */ (element('button', {
+    text,
+    attrs: { type: 'button', title: options.title ?? text },
+  }));
   if (options.pressed != null) {
     node.setAttribute('aria-pressed', String(options.pressed));
   }
@@ -52,6 +55,13 @@ function button(text, onClick, options = {}) {
     }
   });
   return node;
+}
+
+/**
+ * @param {import('../shared/types.js').AppearanceTheme | undefined} theme
+ */
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme ?? 'system';
 }
 
 /**
@@ -137,7 +147,9 @@ function renderContinueSection() {
   section.append(element('p', { text: `Next backlog comic: #${snapshot.meta.continuePoint}` }));
   section.append(element('div', {
     className: 'row',
-    children: [button('Open', () => openTab(getComicUrl(snapshot.meta.continuePoint)))],
+    children: [button('Open', () => openTab(getComicUrl(snapshot.meta.continuePoint)), {
+      title: `Open continue point #${snapshot.meta.continuePoint}`,
+    })],
   }));
   return section;
 }
@@ -156,12 +168,14 @@ function renderNewComicSection() {
   section.append(element('div', {
     className: 'row',
     children: [
-      button('Open', () => openTab(getComicUrl(lastNew))),
+      button('Open', () => openTab(getComicUrl(lastNew)), {
+        title: `Open new xkcd comic #${lastNew}`,
+      }),
       button('Acknowledge', async () => {
         await storageService.acknowledgeLatestComic(lastNew);
         await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
         await refresh();
-      }),
+      }, { title: 'Clear the new-comic badge without marking the comic read' }),
     ],
   }));
   return section;
@@ -175,6 +189,7 @@ function renderActiveComicSection() {
   }
 
   const state = getComicState(snapshot.comics, activeComic.id);
+  const isContinuePoint = snapshot.meta.continuePoint === activeComic.id;
   section.append(element('p', { text: `#${activeComic.id}${activeComic.title ? `: ${activeComic.title}` : ''}` }));
   const row = element('div', { className: 'row' });
   row.append(
@@ -182,14 +197,18 @@ function renderActiveComicSection() {
       snapshot = await storageService.updateComicState(activeComic.id, { read: !state.read });
       await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
       await refresh();
-    }, { pressed: state.read }),
+    }, { pressed: state.read, title: state.read ? 'Mark the active comic unread' : 'Mark the active comic read' }),
     button(state.favorite ? 'Unfavorite' : 'Favorite', async () => {
       snapshot = await storageService.updateComicState(activeComic.id, { favorite: !state.favorite });
       await refresh();
-    }, { pressed: state.favorite }),
+    }, { pressed: state.favorite, title: state.favorite ? 'Remove the active comic from favorites' : 'Add the active comic to favorites' }),
     button('Continue here', async () => {
       await storageService.setContinuePoint(activeComic.id);
       await refresh();
+    }, {
+      disabled: isContinuePoint,
+      pressed: isContinuePoint,
+      title: isContinuePoint ? 'The active comic is already the continue point' : 'Set the active comic as the continue point',
     })
   );
   section.append(row);
@@ -227,7 +246,28 @@ function renderUnreadPreview() {
     return section;
   }
 
-  section.append(element('p', { text: formatRanges(ranges.slice(0, 4)) + (ranges.length > 4 ? ', ...' : '') }));
+  const rangeList = element('div', { className: 'range-list' });
+  for (const range of ranges.slice(0, 4)) {
+    const item = element('span', { className: 'range-item' });
+    item.append(
+      element('a', { text: String(range.start), attrs: { href: getComicUrl(range.start), title: `Open unread range start #${range.start}` } })
+    );
+    if (range.start !== range.end) {
+      item.append(
+        document.createTextNode('-'),
+        element('a', { text: String(range.end), attrs: { href: getComicUrl(range.end), title: `Open unread range end #${range.end}` } })
+      );
+    }
+    item.append(button('Read next', async () => {
+      await storageService.setContinuePoint(range.start);
+      await refresh();
+    }, { title: `Set continue point to unread range start #${range.start}` }));
+    rangeList.append(item);
+  }
+  if (ranges.length > 4) {
+    rangeList.append(element('span', { className: 'muted', text: '...' }));
+  }
+  section.append(rangeList);
   const input = /** @type {HTMLInputElement} */ (element('input', {
     attrs: {
       type: 'text',
@@ -239,8 +279,12 @@ function renderUnreadPreview() {
     className: 'row',
     children: [
       input,
-      button('Mark read', async () => applyBulk(input.value, true)),
-      button('Mark unread', async () => applyBulk(input.value, false)),
+      button('Mark read', async () => applyBulk(input.value, true), {
+        title: 'Mark the entered comic numbers or ranges as read',
+      }),
+      button('Mark unread', async () => applyBulk(input.value, false), {
+        title: 'Mark the entered comic numbers or ranges as unread',
+      }),
     ],
   }));
   return section;
@@ -267,13 +311,19 @@ function renderLinks() {
   section.append(element('div', {
     className: 'row',
     children: [
-      button('Dashboard', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html'))),
-      button('Favorites', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#favorites'))),
-      button('Settings', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#settings'))),
+      button('Dashboard', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html')), {
+        title: 'Open the full xkcd Reading Tracker dashboard',
+      }),
+      button('Favorites', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#favorites')), {
+        title: 'Open the favorites section in the dashboard',
+      }),
+      button('Settings', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#settings')), {
+        title: 'Open tracker settings',
+      }),
       button('Check now', async () => {
         await chrome.runtime.sendMessage({ type: 'xrt:check-latest-comic' });
         await refresh();
-      }),
+      }, { title: 'Check xkcd for a newly published comic now' }),
     ],
   }));
   return section;
@@ -292,6 +342,7 @@ function render() {
 
 async function refresh() {
   snapshot = await storageService.getTrackerSnapshot();
+  applyTheme(snapshot.settings.appearance.theme);
   activeComic = await getActiveComic();
   render();
 }
@@ -305,4 +356,3 @@ chrome.storage.onChanged.addListener((changes, area) => {
 refresh().catch((error) => {
   app.replaceChildren(element('p', { className: 'message error', text: String(error) }));
 });
-

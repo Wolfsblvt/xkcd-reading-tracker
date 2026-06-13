@@ -221,7 +221,7 @@ export function calculateNextContinuePoint({ state, latestComicId, continuePoint
 
   const point = coerceComicId(continuePoint);
   if (point === null || !isValidComicId(point, latestComicId)) {
-    return unreadIds[0];
+    return null;
   }
 
   if (!getComicState(state, point).read) {
@@ -230,4 +230,3 @@ export function calculateNextContinuePoint({ state, latestComicId, continuePoint
 
   return unreadIds.find((id) => id > point) ?? null;
 }
-

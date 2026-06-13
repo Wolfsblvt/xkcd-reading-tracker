@@ -1,4 +1,4 @@
-import { ALT_TEXT_MODES, BROWSE_MODES, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES } from '../shared/constants.js';
+import { ALT_TEXT_MODES, APPEARANCE_THEMES, BROWSE_MODES, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES } from '../shared/constants.js';
 import { calculateProgress, getComicState, getFavoriteComicIds, getUnreadComicIds } from '../shared/comic-state.js';
 import { getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
 import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
@@ -111,6 +111,46 @@ function selectFromOptions(options, selected) {
   return select;
 }
 
+/**
+ * @param {import('../shared/types.js').AppearanceTheme | undefined} theme
+ */
+function applyTheme(theme) {
+  const normalized = Object.values(APPEARANCE_THEMES).includes(theme) ? theme : APPEARANCE_THEMES.SYSTEM;
+  document.documentElement.dataset.theme = normalized;
+}
+
+/**
+ * @param {string} title
+ * @param {Node[]} children
+ * @returns {HTMLElement}
+ */
+function settingGroup(title, children) {
+  const group = element('div', { className: 'settings-group' });
+  group.append(element('h3', { text: title }), ...children);
+  return group;
+}
+
+/**
+ * @param {string} title
+ * @param {string} description
+ * @param {HTMLElement} control
+ * @returns {HTMLElement}
+ */
+function settingItem(title, description, control) {
+  const item = element('div', { className: 'setting-item' });
+  item.append(
+    element('div', {
+      className: 'setting-copy',
+      children: [
+        element('strong', { text: title }),
+        element('span', { text: description }),
+      ],
+    }),
+    element('div', { className: 'setting-control', children: [control] })
+  );
+  return item;
+}
+
 function renderOverview() {
   const progress = calculateProgress(snapshot.comics, snapshot.meta.latestKnownComicId);
   const section = element('section', { attrs: { id: 'overview' } });
@@ -219,9 +259,59 @@ function renderUnread() {
   section.append(element('h2', { text: 'Unread Ranges' }));
   const unreadIds = getUnreadComicIds(snapshot.comics, snapshot.meta.latestKnownComicId);
   const ranges = getUnreadRangesFromIds(unreadIds);
-  section.append(element('p', {
-    text: ranges.length > 0 ? formatRanges(ranges) : 'No unread comics in the known range.',
-  }));
+  if (ranges.length === 0) {
+    section.append(element('p', { text: 'No unread comics in the known range.' }));
+  } else {
+    const table = element('table');
+    table.append(element('thead', {
+      children: [element('tr', {
+        children: [
+          element('th', { text: 'Range' }),
+          element('th', { text: 'Count' }),
+          element('th', { text: 'Actions' }),
+        ],
+      })],
+    }));
+    const body = element('tbody');
+    for (const range of ranges) {
+      const count = range.end - range.start + 1;
+      body.append(element('tr', {
+        children: [
+          element('td', {
+            children: [
+              element('a', { text: String(range.start), attrs: { href: getComicUrl(range.start), title: `Open unread range start #${range.start}` } }),
+              document.createTextNode(range.start === range.end ? '' : ' - '),
+              range.start === range.end
+                ? document.createTextNode('')
+                : element('a', { text: String(range.end), attrs: { href: getComicUrl(range.end), title: `Open unread range end #${range.end}` } }),
+            ],
+          }),
+          element('td', { text: String(count) }),
+          element('td', {
+            children: [
+              button('Read next', async () => {
+                await storageService.setContinuePoint(range.start);
+                await refresh();
+                showMessage(`Continue point set to #${range.start}.`);
+              }),
+              document.createTextNode(' '),
+              button('Mark read', async () => {
+                const ids = [];
+                for (let id = range.start; id <= range.end; id += 1) {
+                  ids.push(id);
+                }
+                await storageService.updateManyComicStates(ids, { read: true });
+                await refresh();
+                showMessage(`Marked range ${formatRanges([range])} as read.`);
+              }),
+            ],
+          }),
+        ],
+      }));
+    }
+    table.append(body);
+    section.append(table);
+  }
 
   const input = /** @type {HTMLInputElement} */ (element('input', {
     attrs: {
@@ -295,52 +385,105 @@ function renderSettings() {
   const badgeEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   badgeEnabled.checked = settings.badge.enabled;
   const checkEveryMinutes = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'number', min: '30', max: '10080', value: String(settings.badge.checkEveryMinutes) } }));
+  const theme = selectFromOptions({
+    [APPEARANCE_THEMES.SYSTEM]: 'Follow system',
+    [APPEARANCE_THEMES.LIGHT]: 'Light',
+    [APPEARANCE_THEMES.DARK]: 'Dark',
+  }, settings.appearance.theme);
+
+  const syncDisabledState = () => {
+    autoReadDelay.disabled = !autoReadEnabled.checked;
+    altDelay.disabled = altMode.value !== ALT_TEXT_MODES.DELAYED;
+    checkEveryMinutes.disabled = !badgeEnabled.checked;
+  };
+
+  const save = async () => {
+    syncDisabledState();
+    applyTheme(/** @type {import('../shared/types.js').AppearanceTheme} */ (theme.value));
+    await storageService.saveSettings({
+      autoMarkRead: {
+        enabled: autoReadEnabled.checked,
+        delaySeconds: Number(autoReadDelay.value),
+      },
+      altText: {
+        mode: /** @type {import('../shared/types.js').AltTextMode} */ (altMode.value),
+        delaySeconds: Number(altDelay.value),
+      },
+      ratingDisplay: /** @type {import('../shared/types.js').RatingDisplayMode} */ (ratingDisplay.value),
+      progressDisplay: /** @type {import('../shared/types.js').ProgressDisplayMode} */ (progressDisplay.value),
+      navigation: {
+        defaultBrowseMode: /** @type {import('../shared/types.js').BrowseMode} */ (defaultBrowseMode.value),
+        showExplainLink: showExplainLink.checked,
+        updateBothNavBars: updateBothNavBars.checked,
+      },
+      badge: {
+        enabled: badgeEnabled.checked,
+        checkEveryMinutes: Number(checkEveryMinutes.value),
+      },
+      appearance: {
+        theme: /** @type {import('../shared/types.js').AppearanceTheme} */ (theme.value),
+      },
+    });
+    await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
+    showMessage('Settings saved.');
+  };
+
+  for (const control of [
+    autoReadEnabled,
+    autoReadDelay,
+    altMode,
+    altDelay,
+    ratingDisplay,
+    progressDisplay,
+    defaultBrowseMode,
+    showExplainLink,
+    updateBothNavBars,
+    badgeEnabled,
+    checkEveryMinutes,
+    theme,
+  ]) {
+    control.addEventListener('change', () => {
+      save().catch((error) => showMessage(String(error), true));
+    });
+  }
+  syncDisabledState();
 
   section.append(element('div', {
-    className: 'field-grid',
+    className: 'settings-list',
     children: [
-      field('Auto mark read', element('span', { className: 'inline-field', children: [autoReadEnabled, document.createTextNode('Enabled')] })),
-      field('Auto mark delay seconds', autoReadDelay),
-      field('Alt text display', altMode),
-      field('Alt text delay seconds', altDelay),
-      field('Rating control', ratingDisplay),
-      field('Progress display', progressDisplay),
-      field('Default browse mode', defaultBrowseMode),
-      field('Explain link', element('span', { className: 'inline-field', children: [showExplainLink, document.createTextNode('Show Huh? link')] })),
-      field('Navigation bars', element('span', { className: 'inline-field', children: [updateBothNavBars, document.createTextNode('Update both xkcd nav bars')] })),
-      field('New comic badge', element('span', { className: 'inline-field', children: [badgeEnabled, document.createTextNode('Enabled')] })),
-      field('Check interval minutes', checkEveryMinutes),
+      settingGroup('Reading', [
+        settingItem('Auto mark read', 'Marks the current comic after active viewing time only.', element('span', {
+          className: 'inline-field',
+          children: [autoReadEnabled, document.createTextNode('Enabled'), autoReadDelay, document.createTextNode('seconds')],
+        })),
+        settingItem('Default browse mode', 'Initial navigation filter for newly opened xkcd tabs.', defaultBrowseMode),
+      ]),
+      settingGroup('Comic Page', [
+        settingItem('Alt text', 'Controls whether the title text is shown below the comic.', element('span', {
+          className: 'inline-field',
+          children: [altMode, altDelay, document.createTextNode('seconds')],
+        })),
+        settingItem('Rating control', 'Chooses whether ratings are hidden, dots, or star buttons.', ratingDisplay),
+        settingItem('Progress display', 'Controls the progress readout shown on comic pages.', progressDisplay),
+        settingItem('Explain xkcd link', 'Shows the small Huh? link near the alt text.', element('span', {
+          className: 'inline-field',
+          children: [showExplainLink, document.createTextNode('Show link')],
+        })),
+        settingItem('Navigation bars', 'Applies filtered navigation and tracker controls to both xkcd nav bars.', element('span', {
+          className: 'inline-field',
+          children: [updateBothNavBars, document.createTextNode('Update both bars')],
+        })),
+      ]),
+      settingGroup('New Comics', [
+        settingItem('Toolbar badge', 'Shows NEW when xkcd publishes a comic you have not acknowledged.', element('span', {
+          className: 'inline-field',
+          children: [badgeEnabled, document.createTextNode('Enabled'), checkEveryMinutes, document.createTextNode('minutes')],
+        })),
+      ]),
+      settingGroup('Appearance', [
+        settingItem('Extension pages', 'Applies to the popup and dashboard. xkcd page controls inherit the site styling.', theme),
+      ]),
     ],
-  }));
-
-  section.append(element('div', {
-    className: 'row',
-    children: [button('Save settings', async () => {
-      await storageService.saveSettings({
-        autoMarkRead: {
-          enabled: autoReadEnabled.checked,
-          delaySeconds: Number(autoReadDelay.value),
-        },
-        altText: {
-          mode: /** @type {import('../shared/types.js').AltTextMode} */ (altMode.value),
-          delaySeconds: Number(altDelay.value),
-        },
-        ratingDisplay: /** @type {import('../shared/types.js').RatingDisplayMode} */ (ratingDisplay.value),
-        progressDisplay: /** @type {import('../shared/types.js').ProgressDisplayMode} */ (progressDisplay.value),
-        navigation: {
-          defaultBrowseMode: /** @type {import('../shared/types.js').BrowseMode} */ (defaultBrowseMode.value),
-          showExplainLink: showExplainLink.checked,
-          updateBothNavBars: updateBothNavBars.checked,
-        },
-        badge: {
-          enabled: badgeEnabled.checked,
-          checkEveryMinutes: Number(checkEveryMinutes.value),
-        },
-      });
-      await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
-      await refresh();
-      showMessage('Settings saved.');
-    })],
   }));
   return section;
 }
@@ -469,6 +612,7 @@ function render() {
 
 async function refresh() {
   snapshot = await storageService.getTrackerSnapshot();
+  applyTheme(snapshot.settings.appearance.theme);
   const favoriteIds = getFavoriteComicIds(snapshot.comics, snapshot.meta.latestKnownComicId);
   metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
   storageUsage = await storageService.getStorageUsage();
@@ -484,4 +628,3 @@ chrome.storage.onChanged.addListener((changes, area) => {
 refresh().catch((error) => {
   app.replaceChildren(element('p', { className: 'message error', text: String(error) }));
 });
-

@@ -14,10 +14,12 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Show xkcd alt text below the comic or after active-viewing delay.
 - Open the matching Explain xkcd page with a small `Huh?` link.
 - View reading progress and unread ranges.
+- Jump to unread range starts/ends and set a range as the next reading anchor.
 - Bulk mark comic numbers or ranges.
 - Export and import complete JSON backups of user-created state.
 - Reset data with an optional backup-first flow.
 - Check for newly published comics and show a toolbar badge.
+- Use light, dark, or system appearance for extension pages.
 
 ## Local Installation
 
@@ -61,9 +63,8 @@ Reading state is stored through Chrome extension storage. Chrome may synchronize
 
 ## Known Limitations
 
-- Browser behavior still needs manual validation after loading the unpacked extension.
+- Browser behavior still needs manual validation after loading or reloading the unpacked extension.
 - The first version is Chrome-focused.
 - Metadata titles for favorites are cached only as needed.
 - Import replaces current data; merge import is future work.
 - Chrome sync is managed by Chrome and may not be immediate or cross-browser.
-

@@ -56,11 +56,12 @@ function element(tagName, options = {}) {
 /**
  * @param {string} text
  * @param {() => void | Promise<void>} onClick
- * @param {{ pressed?: boolean, disabled?: boolean, title?: string }} [options]
+ * @param {{ pressed?: boolean, disabled?: boolean, title?: string, className?: string }} [options]
  * @returns {HTMLButtonElement}
  */
 function button(text, onClick, options = {}) {
   const node = /** @type {HTMLButtonElement} */ (element('button', {
+    className: options.className,
     text,
     attrs: {
       type: 'button',
@@ -268,7 +269,30 @@ function ensurePanel() {
   const target = comic ?? document.querySelector('#middleContainer') ?? document.body;
   target.insertAdjacentElement(comic ? 'afterend' : 'beforeend', root);
   panel = root;
+  syncPageStyleVariables();
   return root;
+}
+
+function syncPageStyleVariables() {
+  if (!panel) {
+    return;
+  }
+
+  const navLink = document.querySelector('.comicNav a');
+  if (!navLink) {
+    return;
+  }
+
+  const style = getComputedStyle(navLink);
+  for (const target of [panel, document.documentElement]) {
+    target.style.setProperty('--xrt-nav-bg', style.backgroundColor);
+    target.style.setProperty('--xrt-nav-color', style.color);
+    target.style.setProperty('--xrt-nav-border', style.borderColor);
+    target.style.setProperty('--xrt-nav-radius', style.borderRadius);
+    target.style.setProperty('--xrt-nav-font-weight', style.fontWeight);
+    target.style.setProperty('--xrt-nav-padding', style.padding);
+    target.style.setProperty('--xrt-nav-margin', style.margin);
+  }
 }
 
 /**
@@ -312,7 +336,8 @@ function renderModeControls() {
 
 function renderStateControls() {
   const state = getComicState(snapshot.comics, currentComic.id);
-  const row = element('div', { className: 'xrt-button-row' });
+  const row = element('div', { className: 'xrt-button-row xrt-state-row' });
+  const isContinuePoint = snapshot.meta.continuePoint === currentComic.id;
   row.append(
     button(state.read ? 'Mark unread' : 'Mark read', async () => {
       snapshot = await storageService.updateComicState(currentComic.id, { read: !state.read });
@@ -320,39 +345,96 @@ function renderStateControls() {
         await sendRuntimeMessage({ type: 'xrt:update-badge' });
       }
       render();
-    }, { pressed: state.read }),
+    }, { pressed: state.read, title: state.read ? 'Mark this comic unread' : 'Mark this comic read' }),
     button(state.favorite ? 'Unfavorite' : 'Favorite', async () => {
       snapshot = await storageService.updateComicState(currentComic.id, { favorite: !state.favorite });
       render();
-    }, { pressed: state.favorite }),
+    }, { pressed: state.favorite, title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites' }),
     button('Set continue here', async () => {
       await storageService.setContinuePoint(currentComic.id);
       await refreshFromStorage();
       showMessage(`Continue point set to #${currentComic.id}.`);
+    }, {
+      disabled: isContinuePoint,
+      pressed: isContinuePoint,
+      title: isContinuePoint ? 'This comic is already the continue point' : 'Use this comic as the backlog continue point',
     })
   );
 
-  if (snapshot.settings.ratingDisplay !== RATING_DISPLAY_MODES.HIDDEN) {
-    const label = element('label', { className: 'xrt-rating-label', text: 'Rating ' });
-    const select = /** @type {HTMLSelectElement} */ (element('select', { attrs: { 'aria-label': 'Comic rating' } }));
-    select.append(element('option', { text: 'None', attrs: { value: '' } }));
-    for (let rating = 1; rating <= 10; rating += 1) {
-      const option = /** @type {HTMLOptionElement} */ (element('option', {
-        text: snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR ? `${rating / 2} star${rating === 2 ? '' : 's'}` : `${rating}/10`,
-        attrs: { value: String(rating) },
-      }));
-      option.selected = state.rating === rating;
-      select.append(option);
-    }
-    select.addEventListener('change', async () => {
-      snapshot = await storageService.updateComicState(currentComic.id, { rating: select.value ? Number(select.value) : null });
-      render();
-    });
-    label.append(select);
-    row.append(label);
+  const ratingControl = renderRatingControl(state);
+  if (ratingControl) {
+    row.append(ratingControl);
   }
 
   return row;
+}
+
+/**
+ * @param {import('../shared/types.js').ComicState} state
+ * @returns {HTMLElement | null}
+ */
+function renderRatingControl(state) {
+  if (snapshot.settings.ratingDisplay !== RATING_DISPLAY_MODES.HIDDEN) {
+    const wrapper = element('div', {
+      className: `xrt-rating-control xrt-rating-${snapshot.settings.ratingDisplay}`,
+      attrs: { role: 'group', 'aria-label': 'Comic rating' },
+    });
+    const label = element('span', { className: 'xrt-rating-title', text: 'Rating' });
+    wrapper.append(label);
+
+    if (snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR) {
+      for (let star = 1; star <= 5; star += 1) {
+        const fullValue = star * 2;
+        const halfValue = fullValue - 1;
+        const starState = state.rating >= fullValue ? 'full' : state.rating === halfValue ? 'half' : 'empty';
+        const starText = starState === 'full' ? '★' : starState === 'half' ? '⯨' : '☆';
+        wrapper.append(button(starText, async () => {
+          const nextRating = state.rating === fullValue ? halfValue : fullValue;
+          snapshot = await storageService.updateComicState(currentComic.id, { rating: nextRating });
+          render();
+        }, {
+          className: `xrt-rating-button xrt-star-button xrt-star-${starState}`,
+          pressed: state.rating >= halfValue,
+          title: state.rating === fullValue ? `Set ${star - 0.5} stars` : `Set ${star} stars`,
+        }));
+      }
+    } else {
+      const valueLabel = element('span', { className: 'xrt-rating-value', text: state.rating ? `${state.rating}/10` : 'No rating' });
+      const setPreview = (rating) => {
+        valueLabel.textContent = rating ? `${rating}/10` : state.rating ? `${state.rating}/10` : 'No rating';
+      };
+      for (let rating = 1; rating <= 10; rating += 1) {
+        const dot = button(state.rating && rating <= state.rating ? '●' : '○', async () => {
+          snapshot = await storageService.updateComicState(currentComic.id, { rating });
+          render();
+        }, {
+          className: 'xrt-rating-button xrt-dot-button',
+          pressed: state.rating === rating,
+          title: `Set rating to ${rating}/10`,
+        });
+        dot.addEventListener('mouseenter', () => setPreview(rating));
+        dot.addEventListener('focus', () => setPreview(rating));
+        dot.addEventListener('mouseleave', () => setPreview(null));
+        dot.addEventListener('blur', () => setPreview(null));
+        wrapper.append(dot);
+      }
+      wrapper.append(valueLabel);
+    }
+
+    if (state.rating) {
+      wrapper.append(button('Clear', async () => {
+        snapshot = await storageService.updateComicState(currentComic.id, { rating: null });
+        render();
+      }, {
+        className: 'xrt-rating-clear',
+        title: 'Clear this comic rating',
+      }));
+    }
+
+    return wrapper;
+  }
+
+  return null;
 }
 
 function renderProgress() {
@@ -386,14 +468,37 @@ function renderAltText() {
 
   const wrapper = element('div', { className: 'xrt-alt-text' });
   const label = element('strong', { text: 'Alt text: ' });
-  const text = element('span', {
-    text: settings.mode === ALT_TEXT_MODES.DELAYED && !altRevealed
-      ? `Reveals after ${settings.delaySeconds} seconds of active viewing.`
-      : currentComic.alt,
-  });
+  const text = element('span', { text: currentComic.alt });
   wrapper.append(label, text);
 
   return wrapper;
+}
+
+function renderComicContext() {
+  const wrapper = element('div', { className: 'xrt-comic-context' });
+  const settings = snapshot.settings.altText;
+  const shouldShowAlt = currentComic.alt
+    && settings.mode !== ALT_TEXT_MODES.NATIVE
+    && settings.mode !== ALT_TEXT_MODES.HIDDEN
+    && (settings.mode !== ALT_TEXT_MODES.DELAYED || altRevealed);
+
+  if (shouldShowAlt) {
+    wrapper.append(renderAltText());
+  }
+
+  if (snapshot.settings.navigation.showExplainLink) {
+    wrapper.append(element('a', {
+      text: 'Huh?',
+      attrs: {
+        href: getExplainXkcdUrl(currentComic.id),
+        target: '_blank',
+        rel: 'noreferrer',
+        title: 'Open this comic on Explain xkcd',
+      },
+    }));
+  }
+
+  return wrapper.childNodes.length > 0 ? wrapper : document.createDocumentFragment();
 }
 
 function renderContinuePoint() {
@@ -429,22 +534,12 @@ function renderHeader() {
 
 function renderLinks() {
   const row = element('div', { className: 'xrt-link-row' });
-  if (snapshot.settings.navigation.showExplainLink) {
-    row.append(element('a', {
-      text: 'Huh?',
-      attrs: {
-        href: getExplainXkcdUrl(currentComic.id),
-        target: '_blank',
-        rel: 'noreferrer',
-        title: 'Open this comic on Explain xkcd',
-      },
-    }));
-  }
   row.append(element('a', {
     text: 'Dashboard',
     attrs: {
       href: chrome.runtime.getURL('src/dashboard/dashboard.html'),
       target: '_blank',
+      title: 'Open the full xkcd Reading Tracker dashboard',
     },
   }));
   return row;
@@ -473,18 +568,88 @@ function getNavigationItems(nav) {
 }
 
 function restoreOriginalNavigation() {
+  for (const item of document.querySelectorAll('.comicNav .xrt-nav-action')) {
+    item.remove();
+  }
+
   for (const item of document.querySelectorAll('.comicNav li[data-xrt-original-html]')) {
     item.innerHTML = item.getAttribute('data-xrt-original-html') ?? item.innerHTML;
   }
 }
 
-function renderNavigation() {
-  if (!currentComic || !snapshot) {
-    return;
+/**
+ * @param {HTMLElement} item
+ */
+function restoreOriginalNavigationItem(item) {
+  if (item.hasAttribute('data-xrt-original-html')) {
+    item.innerHTML = item.getAttribute('data-xrt-original-html') ?? item.innerHTML;
+  }
+}
+
+/**
+ * @param {HTMLElement} item
+ * @param {{ label: string, title: string }} action
+ * @param {string} reason
+ */
+function renderDisabledNavigationItem(item, action, reason) {
+  item.replaceChildren(element('span', {
+    text: action.label,
+    attrs: {
+      class: 'xrt-disabled-nav',
+      'aria-disabled': 'true',
+      title: reason,
+    },
+  }));
+}
+
+/**
+ * @param {HTMLElement} navBar
+ */
+function renderNavActions(navBar) {
+  for (const item of navBar.querySelectorAll('.xrt-nav-action')) {
+    item.remove();
   }
 
-  if (browseMode === BROWSE_MODES.ALL) {
-    restoreOriginalNavigation();
+  const state = getComicState(snapshot.comics, currentComic.id);
+  const actionItems = [
+    {
+      text: state.read ? 'Unread' : 'Read',
+      title: state.read ? 'Mark this comic unread' : 'Mark this comic read',
+      pressed: state.read,
+      action: async () => {
+        snapshot = await storageService.updateComicState(currentComic.id, { read: !state.read });
+        if (!state.read) {
+          await sendRuntimeMessage({ type: 'xrt:update-badge' });
+        }
+        render();
+      },
+    },
+    {
+      text: state.favorite ? 'Unfav' : 'Fav',
+      title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites',
+      pressed: state.favorite,
+      action: async () => {
+        snapshot = await storageService.updateComicState(currentComic.id, { favorite: !state.favorite });
+        render();
+      },
+    },
+  ];
+
+  let insertionPoint = getNavigationItems(navBar).find(([, role]) => role === 'previous')?.[0] ?? navBar.lastElementChild;
+  for (const action of actionItems) {
+    const item = element('li', { className: 'xrt-nav-action' });
+    item.append(button(action.text, action.action, {
+      className: 'xrt-nav-button',
+      pressed: action.pressed,
+      title: action.title,
+    }));
+    insertionPoint?.insertAdjacentElement('afterend', item);
+    insertionPoint = item;
+  }
+}
+
+function renderNavigation() {
+  if (!currentComic || !snapshot) {
     return;
   }
 
@@ -505,8 +670,14 @@ function renderNavigation() {
 
       const action = NAV_ACTIONS[role];
       const targetId = nav[role];
-      item.replaceChildren();
-      if (targetId) {
+      const isDisabled = !targetId || targetId === currentComic.id || (role === 'random' && nav.count <= 1 && nav.includesCurrent);
+
+      if (browseMode === BROWSE_MODES.ALL && role === 'random') {
+        restoreOriginalNavigationItem(item);
+      } else if (browseMode === BROWSE_MODES.ALL && !isDisabled) {
+        restoreOriginalNavigationItem(item);
+      } else if (!isDisabled) {
+        item.replaceChildren();
         item.append(element('a', {
           text: action.label,
           attrs: {
@@ -515,16 +686,16 @@ function renderNavigation() {
           },
         }));
       } else {
-        item.append(element('span', {
-          text: action.label,
-          attrs: {
-            class: 'xrt-disabled-nav',
-            'aria-disabled': 'true',
-            title: `No ${action.title.toLowerCase()} ${browseMode} comic available`,
-          },
-        }));
+        renderDisabledNavigationItem(
+          item,
+          action,
+          browseMode === BROWSE_MODES.ALL
+            ? `Already at the ${action.title.toLowerCase()} available comic`
+            : `No ${action.title.toLowerCase()} ${browseMode} comic available`
+        );
       }
     }
+    renderNavActions(navBar);
   }
 }
 
@@ -557,6 +728,7 @@ function render() {
   }
 
   panel.replaceChildren();
+  syncPageStyleVariables();
   if (!isValidComicId(currentComic.id, snapshot.meta.latestKnownComicId)) {
     panel.append(
       element('h3', { text: 'Reading tracker' }),
@@ -566,11 +738,11 @@ function render() {
   }
 
   panel.append(
+    renderComicContext(),
     renderHeader(),
-    renderModeControls(),
     renderStateControls(),
+    renderModeControls(),
     renderProgress(),
-    renderAltText(),
     renderContinuePoint(),
     renderLinks()
   );

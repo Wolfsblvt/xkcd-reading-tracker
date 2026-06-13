@@ -1,5 +1,6 @@
 import {
   ALT_TEXT_MODES,
+  APPEARANCE_THEMES,
   BROWSE_MODES,
   DEFAULT_LATEST_CHECK_MINUTES,
   PROGRESS_DISPLAY_MODES,
@@ -27,6 +28,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     checkEveryMinutes: DEFAULT_LATEST_CHECK_MINUTES,
   }),
+  appearance: Object.freeze({
+    theme: APPEARANCE_THEMES.SYSTEM,
+  }),
 });
 
 /**
@@ -40,6 +44,7 @@ export function createDefaultSettings() {
     progressDisplay: DEFAULT_SETTINGS.progressDisplay,
     navigation: { ...DEFAULT_SETTINGS.navigation },
     badge: { ...DEFAULT_SETTINGS.badge },
+    appearance: { ...DEFAULT_SETTINGS.appearance },
   };
 }
 
@@ -126,6 +131,9 @@ export function normalizeSettings(value) {
     badge: {
       enabled: normalizeBoolean(badge.enabled, defaults.badge.enabled),
       checkEveryMinutes: Math.max(30, normalizeDelaySeconds(badge.checkEveryMinutes ?? defaults.badge.checkEveryMinutes)),
+    },
+    appearance: {
+      theme: normalizeEnum(raw.appearance?.theme, APPEARANCE_THEMES, defaults.appearance.theme),
     },
   };
 }

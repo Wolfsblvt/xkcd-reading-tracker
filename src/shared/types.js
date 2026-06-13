@@ -3,6 +3,7 @@
  * @typedef {'native' | 'below' | 'delayed' | 'hidden'} AltTextMode
  * @typedef {'hidden' | 'ten-point' | 'five-star'} RatingDisplayMode
  * @typedef {'hidden' | 'text' | 'bar'} ProgressDisplayMode
+ * @typedef {'system' | 'light' | 'dark'} AppearanceTheme
  */
 
 /**
@@ -33,6 +34,7 @@
  * @property {ProgressDisplayMode} progressDisplay
  * @property {{ defaultBrowseMode: BrowseMode, showExplainLink: boolean, updateBothNavBars: boolean }} navigation
  * @property {{ enabled: boolean, checkEveryMinutes: number }} badge
+ * @property {{ theme: AppearanceTheme }} appearance
  */
 
 /**
@@ -68,4 +70,3 @@
  */
 
 export {};
-

@@ -37,6 +37,12 @@ export const PROGRESS_DISPLAY_MODES = Object.freeze({
   BAR: 'bar',
 });
 
+export const APPEARANCE_THEMES = Object.freeze({
+  SYSTEM: 'system',
+  LIGHT: 'light',
+  DARK: 'dark',
+});
+
 export const LATEST_COMIC_ALARM = 'xrt:latest-comic-check';
 export const DEFAULT_LATEST_CHECK_MINUTES = 360;
 
@@ -71,4 +77,3 @@ export function isChunkKey(key) {
 export function isExtensionStorageKey(key) {
   return key.startsWith(STORAGE_PREFIX);
 }
-

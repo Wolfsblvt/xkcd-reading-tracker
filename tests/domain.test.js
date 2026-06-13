@@ -68,6 +68,12 @@ test('continue point advances only upward and becomes null when caught up', () =
     latestComicId: 5,
     continuePoint: 3,
   }), 3);
+
+  assert.equal(calculateNextContinuePoint({
+    state: {},
+    latestComicId: 5,
+    continuePoint: null,
+  }), null);
 });
 
 test('filtered navigation calculates neighbors around the current comic', () => {
@@ -119,4 +125,3 @@ test('range parser normalizes input and reports unavailable comics', () => {
   assert.equal(parsed.errors.includes('Comic 404 is not available.'), true);
   assert.equal(parsed.errors.some((error) => error.includes('nope')), true);
 });
-

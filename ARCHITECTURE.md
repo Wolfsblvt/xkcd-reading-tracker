@@ -27,6 +27,7 @@ User-created data is synchronized with `chrome.storage.sync`:
 - settings
 - schema metadata
 - latest-comic acknowledgement state
+- extension-page appearance preference
 
 Public xkcd metadata is cached in `chrome.storage.local` because it is rebuildable and should not consume sync quota. The cache stores metadata fetched from xkcd `info.0.json` endpoints only when needed.
 
@@ -83,9 +84,9 @@ If the latest known comic is unavailable, progress cannot be computed meaningful
 
 The continue point is separate from read state and browser history.
 
-The user can explicitly set it to the current comic. When the comic at the continue point becomes read, the point advances to the next unread comic with a higher comic number. If no later unread comic exists, the continue point becomes `null`, meaning caught up. Marking an older comic unread later does not pull the continue point backward.
+The user can explicitly set it to the current comic or to the start of an unread range. When the comic at the continue point becomes read, the point advances to the next unread comic with a higher comic number. If no later unread comic exists, the continue point becomes `null`, meaning caught up. Marking an older comic unread later does not pull the continue point backward.
 
-Invalid or missing continue points are normalized to the first unread comic when possible.
+Missing continue points stay missing. This is deliberate: a reset or imported file with no continue point should not silently become comic `#1`. Invalid continue points are normalized to `null`.
 
 ## xkcd Page Integration
 
@@ -97,9 +98,11 @@ The content script detects the current comic by:
 
 This avoids assuming that the homepage URL itself contains the latest comic ID.
 
-The injected panel is inserted below `#comic` when possible. It uses xkcd-compatible plain borders, ordinary buttons, restrained spacing, and Lucida/Helvetica-style typography.
+The injected panel is inserted below `#comic` when possible. It stays centered like xkcd's own content and avoids forcing a white background or fixed text color. Page controls copy computed button styles from xkcd's native navigation, which makes the content-script UI blend with the page and behave better with page-level dark-mode extensions.
 
-Alt text comes from the comic image `title` attribute or fetched metadata. Automatic read marking and delayed alt-text reveal use active viewing time only: the document must be visible and focused.
+Alt text comes from the comic image `title` attribute or fetched metadata. It is displayed above the tracker controls because it belongs to the comic, not to tracker state. Automatic read marking and delayed alt-text reveal use active viewing time only: the document must be visible and focused. Delayed alt text is hidden until the timer completes instead of reserving a placeholder.
+
+Read/favorite controls are also injected into the xkcd navigation bars, near the controls readers use repeatedly. The full tracker panel keeps the same actions for discoverability and for the rating control.
 
 ## Navigation Filtering
 
@@ -109,7 +112,7 @@ Browse modes are:
 - `unread`
 - `favorites`
 
-All mode restores xkcd's original navigation HTML, including the original Random behavior.
+All mode preserves xkcd's original navigation HTML, including the original Random behavior, but disables endpoint navigation when the target would be the current comic.
 
 Unread and Favorites modes rewrite the conceptual First, Previous, Random, Next, and Last links in the xkcd navigation bars. Targets are calculated by comic number. Missing actions are rendered as disabled text rather than broken links.
 
@@ -119,7 +122,9 @@ The current mode is per tab/session, with synchronized settings only providing t
 
 The popup reads storage directly through the shared storage service and asks the active tab's content script for current-comic context when available. It remains compact and avoids full catalog management.
 
-The dashboard is the full management surface. It includes overview, favorites, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. It is implemented as simple module-driven DOM rendering, not an internal app framework.
+The dashboard is the full management surface. It includes overview, favorites, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. Settings autosave on change and are grouped vertically by category. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
+
+The popup and dashboard support light, dark, and system appearance. The content-script UI does not use that setting because it should visually follow the xkcd page it is augmenting.
 
 ## Latest Comic Checks And Badge
 
@@ -209,4 +214,3 @@ Google Drive sync is not a drop-in replacement for Chrome sync. A future provide
 ## Non-Goals
 
 Version one does not implement user accounts, a backend service, analytics, telemetry, social features, comments, recommendations, machine learning, full archive scraping, offline mirroring, Explain xkcd content embedding, mobile app support, collaborative lists, or a framework-driven design system.
-
