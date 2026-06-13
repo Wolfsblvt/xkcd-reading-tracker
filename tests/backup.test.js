@@ -54,4 +54,5 @@ test('migration bootstrap creates current meta and settings', () => {
   assert.equal(migrated.changed, true);
   assert.equal(migrated.updates['xrt:meta'].schemaVersion, SCHEMA_VERSION);
   assert.equal(migrated.updates['xrt:settings'].navigation.defaultBrowseMode, 'all');
+  assert.equal(migrated.updates['xrt:settings'].navigation.showPageNavActions, true);
 });

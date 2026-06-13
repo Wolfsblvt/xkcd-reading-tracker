@@ -32,7 +32,7 @@
  * @property {{ mode: AltTextMode, delaySeconds: number }} altText
  * @property {RatingDisplayMode} ratingDisplay
  * @property {ProgressDisplayMode} progressDisplay
- * @property {{ defaultBrowseMode: BrowseMode, showExplainLink: boolean, updateBothNavBars: boolean }} navigation
+ * @property {{ defaultBrowseMode: BrowseMode, showExplainLink: boolean, updateBothNavBars: boolean, showPageNavActions: boolean }} navigation
  * @property {{ enabled: boolean, checkEveryMinutes: number }} badge
  * @property {{ theme: AppearanceTheme }} appearance
  */

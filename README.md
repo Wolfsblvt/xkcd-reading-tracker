@@ -11,6 +11,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Store an optional canonical 1-10 rating.
 - Keep a dedicated continue-reading point.
 - Browse normal xkcd, unread comics, or favorite comics.
+- Optionally add quick read/favorite toggles to xkcd's own navigation bars.
 - Show xkcd alt text below the comic or after active-viewing delay.
 - Open the matching Explain xkcd page with a small `Huh?` link.
 - View reading progress and unread ranges.

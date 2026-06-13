@@ -389,6 +389,8 @@ function renderSettings() {
   showExplainLink.checked = settings.navigation.showExplainLink;
   const updateBothNavBars = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   updateBothNavBars.checked = settings.navigation.updateBothNavBars;
+  const showPageNavActions = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
+  showPageNavActions.checked = settings.navigation.showPageNavActions;
   const badgeEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   badgeEnabled.checked = settings.badge.enabled;
   const checkEveryMinutes = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'number', min: '30', max: '10080', value: String(settings.badge.checkEveryMinutes) } }));
@@ -423,6 +425,7 @@ function renderSettings() {
         defaultBrowseMode: /** @type {import('../shared/types.js').BrowseMode} */ (defaultBrowseMode.value),
         showExplainLink: showExplainLink.checked,
         updateBothNavBars: updateBothNavBars.checked,
+        showPageNavActions: showPageNavActions.checked,
       },
       badge: {
         enabled: badgeEnabled.checked,
@@ -452,6 +455,7 @@ function renderSettings() {
     defaultBrowseMode,
     showExplainLink,
     updateBothNavBars,
+    showPageNavActions,
     badgeEnabled,
     checkEveryMinutes,
     theme,
@@ -483,9 +487,13 @@ function renderSettings() {
           className: 'inline-field',
           children: [showExplainLink, document.createTextNode('Show link')],
         })),
-        settingItem('Navigation bars', 'Applies filtered navigation and tracker controls to both xkcd nav bars.', element('span', {
+        settingItem('Navigation bars', 'Applies filtered navigation to both xkcd nav bars.', element('span', {
           className: 'inline-field',
           children: [updateBothNavBars, document.createTextNode('Update both bars')],
+        })),
+        settingItem('Read/Fav nav buttons', 'Injects quick read and favorite toggles into xkcd navigation bars.', element('span', {
+          className: 'inline-field',
+          children: [showPageNavActions, document.createTextNode('Show in xkcd nav')],
         })),
       ]),
       settingGroup('New Comics', [

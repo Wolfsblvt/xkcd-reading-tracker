@@ -119,7 +119,7 @@
   margin-bottom: 14px;
 }
 
-.xrt-alt-text {
+.xrt-alt-text-reveal {
   animation: xrt-alt-reveal 160ms ease-out;
 }
 
@@ -168,9 +168,12 @@
 }
 
 #xrt-panel .xrt-rating-button:hover,
-#xrt-panel .xrt-rating-button:focus-visible,
-#xrt-panel .xrt-rating-button[aria-pressed="true"] {
+#xrt-panel .xrt-rating-button:focus-visible {
   border-color: currentColor;
+}
+
+#xrt-panel .xrt-rating-button[aria-pressed="true"] {
+  outline: none;
 }
 
 .xrt-state-button {

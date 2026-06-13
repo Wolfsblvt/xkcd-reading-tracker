@@ -18,6 +18,7 @@ let currentComic = null;
 let browseMode = BROWSE_MODES.ALL;
 let panel = null;
 let altRevealed = false;
+let altRevealAnimationPending = false;
 let autoReadTimer = null;
 let autoReadTimerArmed = false;
 let altTextTimer = null;
@@ -490,7 +491,11 @@ function renderAltText() {
     return document.createDocumentFragment();
   }
 
-  const wrapper = element('div', { className: 'xrt-alt-text' });
+  const shouldAnimate = altRevealAnimationPending;
+  altRevealAnimationPending = false;
+  const wrapper = element('div', {
+    className: shouldAnimate ? 'xrt-alt-text xrt-alt-text-reveal' : 'xrt-alt-text',
+  });
   const label = element('strong', { text: 'Alt text: ' });
   const text = element('span', { text: currentComic.alt });
   wrapper.append(label, text);
@@ -701,8 +706,19 @@ function renderNavigation() {
   });
   const navBars = [...document.querySelectorAll('.comicNav')];
   const selectedNavBars = snapshot.settings.navigation.updateBothNavBars ? navBars : navBars.slice(0, 1);
+  const selectedNavBarSet = new Set(selectedNavBars);
 
-  for (const navBar of selectedNavBars) {
+  for (const navBar of navBars) {
+    if (!selectedNavBarSet.has(navBar)) {
+      for (const item of navBar.querySelectorAll('.xrt-nav-action')) {
+        item.remove();
+      }
+      for (const [item] of getNavigationItems(navBar)) {
+        restoreOriginalNavigationItem(item);
+      }
+      continue;
+    }
+
     for (const [item, role] of getNavigationItems(navBar)) {
       if (!item.hasAttribute('data-xrt-original-html')) {
         item.setAttribute('data-xrt-original-html', item.innerHTML);
@@ -735,7 +751,13 @@ function renderNavigation() {
         );
       }
     }
-    renderNavActions(navBar);
+    if (snapshot.settings.navigation.showPageNavActions) {
+      renderNavActions(navBar);
+    } else {
+      for (const item of navBar.querySelectorAll('.xrt-nav-action')) {
+        item.remove();
+      }
+    }
   }
 }
 
@@ -760,6 +782,7 @@ function scheduleTimers() {
   if (snapshot.settings.altText.mode === ALT_TEXT_MODES.DELAYED && !altRevealed) {
     altTextTimer = startActiveTimer(snapshot.settings.altText.delaySeconds, () => {
       altRevealed = true;
+      altRevealAnimationPending = true;
       render();
     });
   }
@@ -856,6 +879,8 @@ export async function initXkcdTracker() {
   if (!currentComic) {
     return;
   }
+  altRevealed = false;
+  altRevealAnimationPending = false;
   autoReadTimerArmed = false;
   autoReadTimer?.();
   autoReadTimer = null;

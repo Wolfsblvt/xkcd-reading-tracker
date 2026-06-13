@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     defaultBrowseMode: BROWSE_MODES.ALL,
     showExplainLink: true,
     updateBothNavBars: true,
+    showPageNavActions: true,
   }),
   badge: Object.freeze({
     enabled: true,
@@ -127,6 +128,7 @@ export function normalizeSettings(value) {
       defaultBrowseMode: normalizeEnum(navigation.defaultBrowseMode, BROWSE_MODES, defaults.navigation.defaultBrowseMode),
       showExplainLink: normalizeBoolean(navigation.showExplainLink, defaults.navigation.showExplainLink),
       updateBothNavBars: normalizeBoolean(navigation.updateBothNavBars, defaults.navigation.updateBothNavBars),
+      showPageNavActions: normalizeBoolean(navigation.showPageNavActions, defaults.navigation.showPageNavActions),
     },
     badge: {
       enabled: normalizeBoolean(badge.enabled, defaults.badge.enabled),
