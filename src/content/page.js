@@ -19,6 +19,7 @@ let browseMode = BROWSE_MODES.ALL;
 let panel = null;
 let altRevealed = false;
 let autoReadTimer = null;
+let autoReadTimerArmed = false;
 let altTextTimer = null;
 let refreshQueued = false;
 
@@ -249,6 +250,12 @@ function startActiveTimer(delaySeconds, callback) {
   return cancel;
 }
 
+function cancelAutoReadTimer() {
+  autoReadTimer?.();
+  autoReadTimer = null;
+  autoReadTimerArmed = true;
+}
+
 /**
  * @returns {HTMLElement}
  */
@@ -292,6 +299,8 @@ function syncPageStyleVariables() {
     target.style.setProperty('--xrt-nav-font-weight', style.fontWeight);
     target.style.setProperty('--xrt-nav-padding', style.padding);
     target.style.setProperty('--xrt-nav-margin', style.margin);
+    target.style.setProperty('--xrt-nav-hover-bg', style.color);
+    target.style.setProperty('--xrt-nav-hover-color', style.backgroundColor);
   }
 }
 
@@ -339,18 +348,29 @@ function renderStateControls() {
   const row = element('div', { className: 'xrt-button-row xrt-state-row' });
   const isContinuePoint = snapshot.meta.continuePoint === currentComic.id;
   row.append(
-    button(state.read ? 'Mark unread' : 'Mark read', async () => {
+    button('Read', async () => {
+      cancelAutoReadTimer();
       snapshot = await storageService.updateComicState(currentComic.id, { read: !state.read });
       if (!state.read) {
         await sendRuntimeMessage({ type: 'xrt:update-badge' });
       }
       render();
-    }, { pressed: state.read, title: state.read ? 'Mark this comic unread' : 'Mark this comic read' }),
-    button(state.favorite ? 'Unfavorite' : 'Favorite', async () => {
+    }, {
+      className: 'xrt-state-button xrt-read-button',
+      pressed: state.read,
+      title: state.read ? 'Mark this comic unread' : 'Mark this comic read',
+    }),
+    button('Fav', async () => {
+      cancelAutoReadTimer();
       snapshot = await storageService.updateComicState(currentComic.id, { favorite: !state.favorite });
       render();
-    }, { pressed: state.favorite, title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites' }),
+    }, {
+      className: 'xrt-state-button xrt-fav-button',
+      pressed: state.favorite,
+      title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites',
+    }),
     button('Set continue here', async () => {
+      cancelAutoReadTimer();
       await storageService.setContinuePoint(currentComic.id);
       await refreshFromStorage();
       showMessage(`Continue point set to #${currentComic.id}.`);
@@ -389,6 +409,7 @@ function renderRatingControl(state) {
         const starState = state.rating >= fullValue ? 'full' : state.rating === halfValue ? 'half' : 'empty';
         const starText = starState === 'full' ? '★' : starState === 'half' ? '⯨' : '☆';
         wrapper.append(button(starText, async () => {
+          cancelAutoReadTimer();
           const nextRating = state.rating === fullValue ? halfValue : fullValue;
           snapshot = await storageService.updateComicState(currentComic.id, { rating: nextRating });
           render();
@@ -399,12 +420,13 @@ function renderRatingControl(state) {
         }));
       }
     } else {
-      const valueLabel = element('span', { className: 'xrt-rating-value', text: state.rating ? `${state.rating}/10` : 'No rating' });
+      const valueLabel = element('span', { className: 'xrt-rating-value', text: state.rating ? `${state.rating}/10` : '0/10' });
       const setPreview = (rating) => {
-        valueLabel.textContent = rating ? `${rating}/10` : state.rating ? `${state.rating}/10` : 'No rating';
+        valueLabel.textContent = rating ? `${rating}/10` : state.rating ? `${state.rating}/10` : '0/10';
       };
       for (let rating = 1; rating <= 10; rating += 1) {
         const dot = button(state.rating && rating <= state.rating ? '●' : '○', async () => {
+          cancelAutoReadTimer();
           snapshot = await storageService.updateComicState(currentComic.id, { rating });
           render();
         }, {
@@ -421,15 +443,17 @@ function renderRatingControl(state) {
       wrapper.append(valueLabel);
     }
 
-    if (state.rating) {
-      wrapper.append(button('Clear', async () => {
+    wrapper.append(button('Clear', async () => {
+      if (state.rating) {
+        cancelAutoReadTimer();
         snapshot = await storageService.updateComicState(currentComic.id, { rating: null });
         render();
-      }, {
-        className: 'xrt-rating-clear',
-        title: 'Clear this comic rating',
-      }));
-    }
+      }
+    }, {
+      className: 'xrt-rating-clear',
+      disabled: !state.rating,
+      title: state.rating ? 'Clear this comic rating' : 'No rating to clear',
+    }));
 
     return wrapper;
   }
@@ -613,10 +637,11 @@ function renderNavActions(navBar) {
   const state = getComicState(snapshot.comics, currentComic.id);
   const actionItems = [
     {
-      text: state.read ? 'Unread' : 'Read',
+      text: 'Read',
       title: state.read ? 'Mark this comic unread' : 'Mark this comic read',
       pressed: state.read,
       action: async () => {
+        cancelAutoReadTimer();
         snapshot = await storageService.updateComicState(currentComic.id, { read: !state.read });
         if (!state.read) {
           await sendRuntimeMessage({ type: 'xrt:update-badge' });
@@ -625,10 +650,11 @@ function renderNavActions(navBar) {
       },
     },
     {
-      text: state.favorite ? 'Unfav' : 'Fav',
+      text: 'Fav',
       title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites',
       pressed: state.favorite,
       action: async () => {
+        cancelAutoReadTimer();
         snapshot = await storageService.updateComicState(currentComic.id, { favorite: !state.favorite });
         render();
       },
@@ -638,11 +664,25 @@ function renderNavActions(navBar) {
   let insertionPoint = getNavigationItems(navBar).find(([, role]) => role === 'previous')?.[0] ?? navBar.lastElementChild;
   for (const action of actionItems) {
     const item = element('li', { className: 'xrt-nav-action' });
-    item.append(button(action.text, action.action, {
-      className: 'xrt-nav-button',
-      pressed: action.pressed,
-      title: action.title,
-    }));
+    const link = element('a', {
+      className: 'xrt-nav-action-link',
+      text: action.text,
+      attrs: {
+        href: '#',
+        title: action.title,
+        'aria-pressed': String(action.pressed),
+      },
+    });
+    link.addEventListener('click', async (event) => {
+      event.preventDefault();
+      try {
+        await action.action();
+      } catch (error) {
+        showMessage(error instanceof Error ? error.message : String(error), 'error');
+        logNonFatal(error);
+      }
+    });
+    item.append(link);
     insertionPoint?.insertAdjacentElement('afterend', item);
     insertionPoint = item;
   }
@@ -700,14 +740,17 @@ function renderNavigation() {
 }
 
 function scheduleTimers() {
-  autoReadTimer?.();
   altTextTimer?.();
-  autoReadTimer = null;
   altTextTimer = null;
 
   const state = getComicState(snapshot.comics, currentComic.id);
-  if (snapshot.settings.autoMarkRead.enabled && !state.read) {
+  if (!snapshot.settings.autoMarkRead.enabled && autoReadTimer) {
+    cancelAutoReadTimer();
+  }
+  if (!autoReadTimerArmed && snapshot.settings.autoMarkRead.enabled && !state.read) {
+    autoReadTimerArmed = true;
     autoReadTimer = startActiveTimer(snapshot.settings.autoMarkRead.delaySeconds, async () => {
+      autoReadTimer = null;
       snapshot = await storageService.updateComicState(currentComic.id, { read: true });
       await sendRuntimeMessage({ type: 'xrt:update-badge' });
       render();
@@ -813,6 +856,9 @@ export async function initXkcdTracker() {
   if (!currentComic) {
     return;
   }
+  autoReadTimerArmed = false;
+  autoReadTimer?.();
+  autoReadTimer = null;
 
   ensurePanel();
   panel.append(element('p', { text: 'Loading reading tracker...' }));

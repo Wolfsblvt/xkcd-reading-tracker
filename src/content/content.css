@@ -6,6 +6,8 @@
   --xrt-nav-font-weight: 600;
   --xrt-nav-padding: 1.5px 12px;
   --xrt-nav-margin: 0 4px;
+  --xrt-nav-hover-bg: #fff;
+  --xrt-nav-hover-color: #6e7b91;
 
   width: min(760px, calc(100% - 24px));
   margin: 14px auto;
@@ -34,8 +36,7 @@
   font: inherit;
 }
 
-#xrt-panel button,
-.comicNav .xrt-nav-button {
+#xrt-panel button {
   display: inline-block;
   min-height: 24px;
   border: 1.5px solid var(--xrt-nav-border);
@@ -51,20 +52,18 @@
 }
 
 #xrt-panel button:hover:not(:disabled),
-#xrt-panel button:focus-visible,
-.comicNav .xrt-nav-button:hover:not(:disabled),
-.comicNav .xrt-nav-button:focus-visible {
-  filter: brightness(1.12);
+#xrt-panel button:focus-visible {
+  background: var(--xrt-nav-hover-bg);
+  color: var(--xrt-nav-hover-color);
+  text-decoration: none;
 }
 
-#xrt-panel button[aria-pressed="true"],
-.comicNav .xrt-nav-button[aria-pressed="true"] {
+#xrt-panel button[aria-pressed="true"] {
   outline: 2px solid currentColor;
   outline-offset: 1px;
 }
 
-#xrt-panel button:disabled,
-.comicNav .xrt-nav-button:disabled {
+#xrt-panel button:disabled {
   opacity: 0.55;
   cursor: default;
   filter: grayscale(0.25);
@@ -117,7 +116,7 @@
   gap: 6px 12px;
   justify-content: center;
   align-items: baseline;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .xrt-alt-text {
@@ -131,12 +130,18 @@
   justify-content: center;
   align-items: center;
   margin-left: 4px;
+  white-space: nowrap;
 }
 
 .xrt-rating-title,
 .xrt-rating-value {
   margin: 0 4px;
   font-weight: 600;
+}
+
+.xrt-rating-value {
+  min-width: 5ch;
+  text-align: left;
 }
 
 #xrt-panel .xrt-rating-button,
@@ -152,10 +157,29 @@
   outline-offset: 0;
 }
 
+#xrt-panel .xrt-rating-clear {
+  min-width: 44px;
+}
+
+#xrt-panel .xrt-rating-clear:disabled {
+  visibility: visible;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
 #xrt-panel .xrt-rating-button:hover,
 #xrt-panel .xrt-rating-button:focus-visible,
 #xrt-panel .xrt-rating-button[aria-pressed="true"] {
   border-color: currentColor;
+}
+
+.xrt-state-button {
+  min-width: 58px;
+}
+
+.xrt-read-button,
+.xrt-fav-button {
+  text-align: center;
 }
 
 .xrt-star-empty {
@@ -199,12 +223,14 @@
   border-color: #9b111e;
 }
 
-.comicNav .xrt-nav-action {
-  display: inline;
+.comicNav a.xrt-nav-action-link {
+  min-width: 45px;
+  text-align: center;
 }
 
-.comicNav .xrt-nav-button {
-  font-size: inherit;
+.comicNav a.xrt-nav-action-link[aria-pressed="true"] {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
 }
 
 .comicNav .xrt-disabled-nav {

@@ -187,6 +187,12 @@ th {
   margin-top: 12px;
 }
 
+.autosave-status {
+  min-height: 1.4em;
+  margin-top: 4px;
+  color: var(--xrt-muted);
+}
+
 .settings-group {
   display: grid;
   gap: 8px;
@@ -274,4 +280,3 @@ progress {
     flex: 1 1 auto;
   }
 }
-

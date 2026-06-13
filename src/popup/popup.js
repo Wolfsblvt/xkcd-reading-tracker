@@ -193,12 +193,12 @@ function renderActiveComicSection() {
   section.append(element('p', { text: `#${activeComic.id}${activeComic.title ? `: ${activeComic.title}` : ''}` }));
   const row = element('div', { className: 'row' });
   row.append(
-    button(state.read ? 'Unread' : 'Read', async () => {
+    button('Read', async () => {
       snapshot = await storageService.updateComicState(activeComic.id, { read: !state.read });
       await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
       await refresh();
     }, { pressed: state.read, title: state.read ? 'Mark the active comic unread' : 'Mark the active comic read' }),
-    button(state.favorite ? 'Unfavorite' : 'Favorite', async () => {
+    button('Fav', async () => {
       snapshot = await storageService.updateComicState(activeComic.id, { favorite: !state.favorite });
       await refresh();
     }, { pressed: state.favorite, title: state.favorite ? 'Remove the active comic from favorites' : 'Add the active comic to favorites' }),

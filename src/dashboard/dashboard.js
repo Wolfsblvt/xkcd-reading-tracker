@@ -1,4 +1,4 @@
-import { ALT_TEXT_MODES, APPEARANCE_THEMES, BROWSE_MODES, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES } from '../shared/constants.js';
+import { ALT_TEXT_MODES, APPEARANCE_THEMES, BROWSE_MODES, META_KEY, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES, SETTINGS_KEY } from '../shared/constants.js';
 import { calculateProgress, getComicState, getFavoriteComicIds, getUnreadComicIds } from '../shared/comic-state.js';
 import { getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
 import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
@@ -9,6 +9,7 @@ const app = document.getElementById('app');
 let snapshot = null;
 let metadataById = {};
 let storageUsage = null;
+let suppressOwnSettingsRefresh = false;
 
 /**
  * @param {string} tagName
@@ -37,14 +38,14 @@ function element(tagName, options = {}) {
 /**
  * @param {string} text
  * @param {() => void | Promise<void>} onClick
- * @param {{ className?: string }} [options]
+ * @param {{ className?: string, title?: string }} [options]
  * @returns {HTMLButtonElement}
  */
 function button(text, onClick, options = {}) {
   const node = /** @type {HTMLButtonElement} */ (element('button', {
     className: options.className,
     text,
-    attrs: { type: 'button' },
+    attrs: { type: 'button', title: options.title ?? text },
   }));
   node.addEventListener('click', async () => {
     try {
@@ -293,7 +294,7 @@ function renderUnread() {
                 await storageService.setContinuePoint(range.start);
                 await refresh();
                 showMessage(`Continue point set to #${range.start}.`);
-              }),
+              }, { title: `Set the continue point to the start of this unread range (#${range.start})` }),
               document.createTextNode(' '),
               button('Mark read', async () => {
                 const ids = [];
@@ -303,7 +304,7 @@ function renderUnread() {
                 await storageService.updateManyComicStates(ids, { read: true });
                 await refresh();
                 showMessage(`Marked range ${formatRanges([range])} as read.`);
-              }),
+              }, { title: `Mark every comic in ${formatRanges([range])} as read` }),
             ],
           }),
         ],
@@ -325,8 +326,12 @@ function renderUnread() {
     className: 'row',
     children: [
       input,
-      button('Mark read', () => applyBulk(input.value, true)),
-      button('Mark unread', () => applyBulk(input.value, false)),
+      button('Mark read', () => applyBulk(input.value, true), {
+        title: 'Mark the entered comic numbers or ranges as read',
+      }),
+      button('Mark unread', () => applyBulk(input.value, false), {
+        title: 'Mark the entered comic numbers or ranges as unread',
+      }),
     ],
   }));
   return section;
@@ -352,6 +357,8 @@ function renderSettings() {
   const settings = snapshot.settings;
   const section = element('section', { attrs: { id: 'settings' } });
   section.append(element('h2', { text: 'Settings' }));
+  const saveStatus = element('p', { className: 'autosave-status', attrs: { 'aria-live': 'polite' } });
+  section.append(saveStatus);
 
   const autoReadEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   autoReadEnabled.checked = settings.autoMarkRead.enabled;
@@ -400,7 +407,8 @@ function renderSettings() {
   const save = async () => {
     syncDisabledState();
     applyTheme(/** @type {import('../shared/types.js').AppearanceTheme} */ (theme.value));
-    await storageService.saveSettings({
+    suppressOwnSettingsRefresh = true;
+    const savedSettings = await storageService.saveSettings({
       autoMarkRead: {
         enabled: autoReadEnabled.checked,
         delaySeconds: Number(autoReadDelay.value),
@@ -424,8 +432,14 @@ function renderSettings() {
         theme: /** @type {import('../shared/types.js').AppearanceTheme} */ (theme.value),
       },
     });
+    snapshot = { ...snapshot, settings: savedSettings };
     await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
-    showMessage('Settings saved.');
+    saveStatus.textContent = 'Saved';
+    window.setTimeout(() => {
+      if (saveStatus.textContent === 'Saved') {
+        saveStatus.textContent = '';
+      }
+    }, 1200);
   };
 
   for (const control of [
@@ -621,6 +635,11 @@ async function refresh() {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && Object.keys(changes).some((key) => key.startsWith('xrt:'))) {
+    const changedKeys = Object.keys(changes);
+    if (suppressOwnSettingsRefresh && changedKeys.every((key) => key === SETTINGS_KEY || key === META_KEY)) {
+      suppressOwnSettingsRefresh = false;
+      return;
+    }
     refresh().catch((error) => showMessage(String(error), true));
   }
 });

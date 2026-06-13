@@ -102,6 +102,8 @@ The injected panel is inserted below `#comic` when possible. It stays centered l
 
 Alt text comes from the comic image `title` attribute or fetched metadata. It is displayed above the tracker controls because it belongs to the comic, not to tracker state. Automatic read marking and delayed alt-text reveal use active viewing time only: the document must be visible and focused. Delayed alt text is hidden until the timer completes instead of reserving a placeholder.
 
+Automatic read marking is a one-shot page-load timer. It does not restart from ordinary re-renders or from clicking tracker controls. Explicit tracker interactions cancel the pending auto-read timer so a deliberate user choice is not overwritten a few seconds later.
+
 Read/favorite controls are also injected into the xkcd navigation bars, near the controls readers use repeatedly. The full tracker panel keeps the same actions for discoverability and for the rating control.
 
 ## Navigation Filtering
@@ -122,7 +124,7 @@ The current mode is per tab/session, with synchronized settings only providing t
 
 The popup reads storage directly through the shared storage service and asks the active tab's content script for current-comic context when available. It remains compact and avoids full catalog management.
 
-The dashboard is the full management surface. It includes overview, favorites, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. Settings autosave on change and are grouped vertically by category. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
+The dashboard is the full management surface. It includes overview, favorites, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. Settings autosave on change, avoid self-triggered full-page refreshes, and are grouped vertically by category. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
 
 The popup and dashboard support light, dark, and system appearance. The content-script UI does not use that setting because it should visually follow the xkcd page it is augmenting.
 
