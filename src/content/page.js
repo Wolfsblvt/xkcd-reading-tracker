@@ -300,21 +300,29 @@ function syncPageStyleVariables() {
   }
 
   const navLink = document.querySelector('.comicNav a');
-  if (!navLink) {
-    return;
-  }
+  const pageLink = [...document.querySelectorAll('#middleContainer a[href]')]
+    .find((link) => !link.closest('.comicNav') && !link.closest(`#${PANEL_ID}`));
+  const navStyle = navLink ? getComputedStyle(navLink) : null;
+  const pageLinkStyle = pageLink ? getComputedStyle(pageLink) : null;
 
-  const style = getComputedStyle(navLink);
   for (const target of [panel, document.documentElement]) {
-    target.style.setProperty('--xrt-nav-bg', style.backgroundColor);
-    target.style.setProperty('--xrt-nav-color', style.color);
-    target.style.setProperty('--xrt-nav-border', style.borderColor);
-    target.style.setProperty('--xrt-nav-radius', style.borderRadius);
-    target.style.setProperty('--xrt-nav-font-weight', style.fontWeight);
-    target.style.setProperty('--xrt-nav-padding', style.padding);
-    target.style.setProperty('--xrt-nav-margin', style.margin);
-    target.style.setProperty('--xrt-nav-hover-bg', style.color);
-    target.style.setProperty('--xrt-nav-hover-color', style.backgroundColor);
+    if (navStyle) {
+      target.style.setProperty('--xrt-nav-bg', navStyle.backgroundColor);
+      target.style.setProperty('--xrt-nav-color', navStyle.color);
+      target.style.setProperty('--xrt-nav-border', navStyle.borderColor);
+      target.style.setProperty('--xrt-nav-radius', navStyle.borderRadius);
+      target.style.setProperty('--xrt-nav-font-weight', navStyle.fontWeight);
+      target.style.setProperty('--xrt-nav-padding', navStyle.padding);
+      target.style.setProperty('--xrt-nav-margin', navStyle.margin);
+      target.style.setProperty('--xrt-nav-hover-bg', navStyle.color);
+      target.style.setProperty('--xrt-nav-hover-color', navStyle.backgroundColor);
+    }
+
+    if (pageLinkStyle) {
+      target.style.setProperty('--xrt-link-color', pageLinkStyle.color);
+      target.style.setProperty('--xrt-link-font-weight', pageLinkStyle.fontWeight);
+      target.style.setProperty('--xrt-link-text-decoration', pageLinkStyle.textDecorationLine);
+    }
   }
 }
 
@@ -536,6 +544,7 @@ function renderComicContext() {
   if (snapshot.settings.navigation.showExplainLink) {
     const labels = snapshot.settings.navigation.useXkcdStyleLabels ? LABELS.themed : LABELS.generic;
     wrapper.append(element('a', {
+      className: 'xrt-site-link',
       text: labels.explain,
       attrs: {
         href: getExplainXkcdUrl(currentComic.id),
@@ -554,8 +563,12 @@ function renderContinuePoint() {
   const wrapper = element('p', { className: 'xrt-continue' });
   if (continuePoint) {
     const link = element('a', {
+      className: 'xrt-site-link',
       text: `Continue at #${continuePoint}`,
-      attrs: { href: getComicUrl(continuePoint) },
+      attrs: {
+        href: getComicUrl(continuePoint),
+        title: `Open comic #${continuePoint}`,
+      },
     });
     wrapper.append(link);
   } else {
@@ -582,12 +595,19 @@ function renderHeader() {
 
 function renderLinks() {
   const row = element('div', { className: 'xrt-link-row' });
-  row.append(button('Dashboard', async () => {
+  const link = element('a', {
+    className: 'xrt-site-link xrt-dashboard-link',
+    text: 'Dashboard',
+    attrs: {
+      href: chrome.runtime.getURL('src/dashboard/dashboard.html'),
+      title: 'Open the full xkcd Reading Tracker dashboard',
+    },
+  });
+  link.addEventListener('click', async (event) => {
+    event.preventDefault();
     await sendRuntimeMessage({ type: 'xrt:open-dashboard' });
-  }, {
-    className: 'xrt-dashboard-link',
-    title: 'Open the full xkcd Reading Tracker dashboard',
-  }));
+  });
+  row.append(link);
   return row;
 }
 

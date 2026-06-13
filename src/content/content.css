@@ -8,6 +8,9 @@
   --xrt-nav-margin: 0 4px;
   --xrt-nav-hover-bg: #fff;
   --xrt-nav-hover-color: #6e7b91;
+  --xrt-link-color: #96a8c8;
+  --xrt-link-font-weight: 800;
+  --xrt-link-text-decoration: none;
 
   width: min(760px, calc(100% - 24px));
   margin: 14px auto;
@@ -34,6 +37,17 @@
 #xrt-panel select,
 #xrt-panel a {
   font: inherit;
+}
+
+#xrt-panel .xrt-site-link {
+  color: var(--xrt-link-color);
+  font-weight: var(--xrt-link-font-weight);
+  text-decoration: var(--xrt-link-text-decoration);
+}
+
+#xrt-panel .xrt-site-link:hover,
+#xrt-panel .xrt-site-link:focus-visible {
+  text-decoration: underline;
 }
 
 #xrt-panel button {
@@ -146,26 +160,32 @@
 
 #xrt-panel .xrt-rating-button,
 #xrt-panel .xrt-rating-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
-  width: 22px;
-  min-height: 22px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
   margin: 0;
-  padding: 1px 4px;
+  padding: 0;
   border-color: transparent;
   background: transparent;
   color: inherit;
   font-weight: 600;
+  line-height: 1;
   outline-offset: 0;
 }
 
 #xrt-panel .xrt-star-button {
   font-size: 16px;
-  line-height: 1;
-  text-align: center;
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", Lucida, Helvetica, sans-serif;
 }
 
 #xrt-panel .xrt-rating-clear {
   width: 44px;
+  min-width: 44px;
 }
 
 #xrt-panel .xrt-rating-clear:disabled {
