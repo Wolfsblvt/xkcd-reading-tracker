@@ -1,0 +1,114 @@
+#xrt-panel {
+  width: min(760px, calc(100% - 24px));
+  margin: 14px auto;
+  padding: 10px 12px;
+  border: 1px solid #96a8c8;
+  background: #fff;
+  color: #000;
+  font-family: Lucida, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+#xrt-panel h3,
+#xrt-panel p {
+  margin: 0;
+}
+
+#xrt-panel h3 {
+  font-size: 16px;
+}
+
+#xrt-panel button,
+#xrt-panel select,
+#xrt-panel a {
+  font: inherit;
+}
+
+#xrt-panel button {
+  border: 1px solid #333;
+  background: #eee;
+  color: #000;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+#xrt-panel button:hover:not(:disabled),
+#xrt-panel button:focus-visible {
+  background: #fff;
+}
+
+#xrt-panel button[aria-pressed="true"] {
+  background: #96a8c8;
+  color: #000;
+}
+
+#xrt-panel button:disabled {
+  color: #666;
+  cursor: default;
+}
+
+.xrt-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.xrt-button-row,
+.xrt-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.xrt-rating-label {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.xrt-progress,
+.xrt-alt-text,
+.xrt-continue,
+.xrt-message {
+  margin-top: 8px;
+}
+
+.xrt-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.xrt-progress progress {
+  width: 180px;
+  height: 14px;
+}
+
+.xrt-alt-text {
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+}
+
+.xrt-message {
+  padding: 6px 8px;
+  border: 1px solid #96a8c8;
+  background: #f7f9ff;
+}
+
+.xrt-message-error {
+  border-color: #9b111e;
+  background: #fff2f2;
+}
+
+.xrt-disabled-nav {
+  color: #666;
+  cursor: default;
+}
+
