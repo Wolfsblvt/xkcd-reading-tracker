@@ -154,6 +154,71 @@ function selectFromOptions(options, selected) {
   return select;
 }
 
+/**
+ * @param {unknown[]} comicIds
+ * @returns {number[]}
+ */
+function normalizeComicIds(comicIds) {
+  return [...new Set(comicIds.map(Number))].filter((id) => Number.isInteger(id) && id > 0);
+}
+
+/**
+ * @param {number[]} comicIds
+ * @returns {Promise<Record<string, import('../shared/types.js').ComicMetadata>>}
+ */
+async function getFetchedComicMetadata(comicIds) {
+  const ids = normalizeComicIds(comicIds);
+  if (ids.length === 0) {
+    return {};
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'xrt:get-comic-metadata',
+      comicIds: ids,
+      limit: ids.length,
+    });
+    if (response?.ok && response.metadataById && typeof response.metadataById === 'object') {
+      return response.metadataById;
+    }
+  } catch (error) {
+    logNonFatal(error);
+  }
+
+  return metadataCache.getCachedMetadataForComics(ids);
+}
+
+/**
+ * @param {number[]} favoriteIds
+ * @returns {Promise<Record<string, import('../shared/types.js').ComicMetadata>>}
+ */
+async function loadDashboardMetadata(favoriteIds) {
+  const overviewIds = normalizeComicIds([snapshot?.meta.continuePoint]);
+  const [favoriteMetadata, overviewMetadata] = await Promise.all([
+    metadataCache.getCachedMetadataForComics(favoriteIds),
+    getFetchedComicMetadata(overviewIds),
+  ]);
+  return { ...favoriteMetadata, ...overviewMetadata };
+}
+
+/**
+ * @param {number} comicId
+ * @returns {string | null}
+ */
+function getCachedComicTitle(comicId) {
+  const metadata = metadataById[String(comicId)];
+  return metadata?.safeTitle ?? metadata?.title ?? null;
+}
+
+/**
+ * @param {number} comicId
+ * @returns {string}
+ */
+function formatComicLabel(comicId) {
+  const title = getCachedComicTitle(comicId);
+  return `#${comicId}${title ? `: ${title}` : ''}`;
+}
+
 async function loadFavoriteLibraryPreferences() {
   if (favoriteLibraryPreferencesLoaded || !chrome.storage?.session) {
     favoriteLibraryPreferencesLoaded = true;
@@ -231,12 +296,19 @@ function renderOverview() {
 
   const row = element('div', { className: 'row' });
   if (snapshot.meta.continuePoint) {
-    row.append(
-      element('a', {
-        text: `Continue at #${snapshot.meta.continuePoint}`,
-        attrs: { href: getComicUrl(snapshot.meta.continuePoint) },
-      })
-    );
+    const continuePoint = snapshot.meta.continuePoint;
+    row.append(element('span', {
+      children: [
+        document.createTextNode('Continue at '),
+        element('a', {
+          text: formatComicLabel(continuePoint),
+          attrs: {
+            href: getComicUrl(continuePoint),
+            title: `Open ${formatComicLabel(continuePoint)}`,
+          },
+        }),
+      ],
+    }));
   } else {
     row.append(element('span', { className: 'muted', text: 'Continue point is not set or you are caught up.' }));
   }
@@ -727,7 +799,7 @@ async function fetchMissingFavoriteTitles() {
       comicIds: missing,
       limit: 250,
     });
-    metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
+    metadataById = await loadDashboardMetadata(favoriteIds);
   } finally {
     favoriteMetadataRefreshPending = false;
     render();
@@ -1142,6 +1214,26 @@ function render() {
     renderDiagnostics(),
   ];
   app.replaceChildren(...sections);
+  scheduleHashScroll();
+}
+
+function scrollToHashTarget() {
+  if (!window.location.hash) {
+    return;
+  }
+
+  let targetId = window.location.hash.slice(1);
+  try {
+    targetId = decodeURIComponent(targetId);
+  } catch {
+    // Keep the raw hash if it was not URI-encoded cleanly.
+  }
+
+  document.getElementById(targetId)?.scrollIntoView({ block: 'start' });
+}
+
+function scheduleHashScroll() {
+  window.requestAnimationFrame(scrollToHashTarget);
 }
 
 /**
@@ -1165,7 +1257,7 @@ async function refreshMissingFavoriteMetadata(favoriteIds) {
       comicIds: missing,
       limit: 250,
     });
-    metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
+    metadataById = await loadDashboardMetadata(favoriteIds);
   } finally {
     favoriteMetadataRefreshPending = false;
     render();
@@ -1177,7 +1269,7 @@ async function refresh() {
   await loadFavoriteLibraryPreferences();
   applyTheme(snapshot.settings.appearance.theme);
   const favoriteIds = getFavoriteComicIds(snapshot.comics, snapshot.meta.latestKnownComicId);
-  metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
+  metadataById = await loadDashboardMetadata(favoriteIds);
   storageUsage = await storageService.getStorageUsage();
   render();
   refreshMissingFavoriteMetadata(favoriteIds).catch(logNonFatal);
@@ -1193,6 +1285,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
     refresh().catch((error) => showMessage(String(error), true));
   }
 });
+
+window.addEventListener('hashchange', scheduleHashScroll);
 
 refresh().catch((error) => {
   app.replaceChildren(element('p', { className: 'message error', text: String(error) }));
