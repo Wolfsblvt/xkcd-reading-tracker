@@ -6,7 +6,6 @@
   "description": "Track read, favorite, rated, and unread xkcd comics directly on xkcd.com.",
   "minimum_chrome_version": "120",
   "permissions": [
-    "activeTab",
     "alarms",
     "storage"
   ],

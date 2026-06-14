@@ -161,7 +161,6 @@ Permissions are intentionally narrow:
 
 - `storage` for sync/local/session extension state,
 - `alarms` for latest-comic checks,
-- `activeTab` for popup interaction with the active xkcd tab after the user opens the popup,
 - host access only for `https://xkcd.com/*` and `https://www.xkcd.com/*`.
 
 The extension does not request browsing history, broad host access, OAuth, downloads, notifications, or Explain xkcd permissions. Explain xkcd is opened as a normal user-facing link.
