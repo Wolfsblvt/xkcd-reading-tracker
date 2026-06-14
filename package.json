@@ -1,10 +1,13 @@
 {
   "name": "xkcd-reading-tracker-extension",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
+  "license": "AGPL-3.0-or-later",
   "description": "A maintainable Chrome MV3 extension for tracking xkcd reading progress.",
   "scripts": {
+    "build": "node tools/package-extension.mjs",
+    "package": "node tools/package-extension.mjs",
     "test": "node --test",
     "check:manifest": "node tests/manifest-smoke.test.js"
   },
@@ -13,4 +16,3 @@
   },
   "devDependencies": {}
 }
-

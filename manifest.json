@@ -2,11 +2,10 @@
   "manifest_version": 3,
   "name": "xkcd Reading Tracker",
   "short_name": "xkcd Tracker",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Track read, favorite, rated, and unread xkcd comics directly on xkcd.com.",
   "minimum_chrome_version": "120",
   "permissions": [
-    "activeTab",
     "alarms",
     "storage"
   ],
