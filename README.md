@@ -48,6 +48,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Show xkcd alt text below the comic or after active-viewing delay.
 - Open the matching Explain xkcd page with a small `Huh?` or `Explain` link.
 - View reading progress and unread ranges.
+- Search, filter, sort, and randomly open favorite comics from the dashboard.
 - Jump to unread range starts/ends and set a range as the next reading anchor.
 - Bulk mark comic numbers or ranges.
 - Export and import complete JSON backups of user-created state.
@@ -69,7 +70,7 @@ On xkcd comic pages, use the injected tracker panel below the comic to mark read
 
 Use the toolbar popup for quick progress, current-tab controls, new-comic status, unread preview, and compact bulk marking.
 
-Use the dashboard/options page for settings, favorites, unread ranges, import/export, reset, and diagnostics.
+Use the dashboard/options page for settings, searchable favorites, unread ranges, import/export, reset, and diagnostics.
 
 ## Development
 
@@ -109,6 +110,6 @@ Reading state is stored through Chrome extension storage. Chrome may synchronize
 
 - Browser behavior still needs manual validation after loading or reloading the unpacked extension.
 - The first version is Chrome-focused.
-- Metadata titles for favorites are cached only as needed.
+- Favorite titles are cached only as needed, so title search improves after metadata is fetched.
 - Import replaces current data; merge import is future work.
 - Chrome sync is managed by Chrome and may not be immediate or cross-browser.

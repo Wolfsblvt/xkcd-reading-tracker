@@ -1,5 +1,13 @@
 import { ALT_TEXT_MODES, APPEARANCE_THEMES, BROWSE_MODES, META_KEY, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES, SETTINGS_KEY } from '../shared/constants.js';
-import { calculateProgress, getComicState, getFavoriteComicIds, getUnreadComicIds } from '../shared/comic-state.js';
+import { calculateProgress, getFavoriteComicIds, getUnreadComicIds } from '../shared/comic-state.js';
+import {
+  FAVORITE_RATING_FILTERS,
+  FAVORITE_SORT_MODES,
+  buildFavoriteRows,
+  filterFavoriteRows,
+  getRandomFavoriteRow,
+  sortFavoriteRows,
+} from '../shared/favorites-library.js';
 import { getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
 import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
 import { storageService } from '../storage/storage-service.js';
@@ -11,6 +19,11 @@ let metadataById = {};
 let storageUsage = null;
 let suppressOwnSettingsRefresh = false;
 let favoriteMetadataRefreshPending = false;
+const favoriteLibraryState = {
+  query: '',
+  ratingFilter: FAVORITE_RATING_FILTERS.ALL,
+  sortMode: FAVORITE_SORT_MODES.RATING_DESC,
+};
 
 /**
  * @param {string} tagName
@@ -39,7 +52,7 @@ function element(tagName, options = {}) {
 /**
  * @param {string} text
  * @param {() => void | Promise<void>} onClick
- * @param {{ className?: string, title?: string }} [options]
+ * @param {{ className?: string, disabled?: boolean, title?: string }} [options]
  * @returns {HTMLButtonElement}
  */
 function button(text, onClick, options = {}) {
@@ -48,6 +61,7 @@ function button(text, onClick, options = {}) {
     text,
     attrs: { type: 'button', title: options.title ?? text },
   }));
+  node.disabled = Boolean(options.disabled);
   node.addEventListener('click', async () => {
     try {
       await onClick();
@@ -92,6 +106,13 @@ function downloadJson(name, value) {
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * @param {string} url
+ */
+function openExternalUrl(url) {
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 /**
@@ -198,17 +219,134 @@ function renderOverview() {
 
 function renderFavorites() {
   const section = element('section', { attrs: { id: 'favorites' } });
-  const favoriteIds = getFavoriteComicIds(snapshot.comics, snapshot.meta.latestKnownComicId);
   section.append(element('h2', { text: 'Favorites' }));
-  if (favoriteIds.length === 0) {
+  const allRows = buildFavoriteRows({
+    comics: snapshot.comics,
+    metadataById,
+    latestComicId: snapshot.meta.latestKnownComicId,
+  });
+
+  if (allRows.length === 0) {
     section.append(element('p', { className: 'muted', text: 'No favorite comics yet.' }));
     return section;
   }
 
-  const sorted = favoriteIds.sort((a, b) => {
-    const ratingDiff = (getComicState(snapshot.comics, b).rating ?? 0) - (getComicState(snapshot.comics, a).rating ?? 0);
-    return ratingDiff || a - b;
+  const searchInput = /** @type {HTMLInputElement} */ (element('input', {
+    attrs: {
+      type: 'search',
+      placeholder: '#123 or title',
+      'aria-label': 'Search favorite comics',
+    },
+  }));
+  searchInput.value = favoriteLibraryState.query;
+  const ratingFilter = selectFromOptions({
+    [FAVORITE_RATING_FILTERS.ALL]: 'All favorites',
+    [FAVORITE_RATING_FILTERS.RATED]: 'Rated only',
+    [FAVORITE_RATING_FILTERS.UNRATED]: 'Unrated only',
+  }, favoriteLibraryState.ratingFilter);
+  const sortMode = selectFromOptions({
+    [FAVORITE_SORT_MODES.RATING_DESC]: 'Rating high to low',
+    [FAVORITE_SORT_MODES.RATING_ASC]: 'Rating low to high',
+    [FAVORITE_SORT_MODES.NUMBER_ASC]: 'Comic number ascending',
+    [FAVORITE_SORT_MODES.NUMBER_DESC]: 'Comic number descending',
+    [FAVORITE_SORT_MODES.TITLE_ASC]: 'Title A-Z',
+    [FAVORITE_SORT_MODES.TITLE_DESC]: 'Title Z-A',
+  }, favoriteLibraryState.sortMode);
+  const results = element('div', { className: 'favorite-library-results' });
+  let visibleRows = /** @type {import('../shared/favorites-library.js').FavoriteLibraryRow[]} */ ([]);
+
+  const randomButton = button('Random favorite', () => {
+    const row = getRandomFavoriteRow(visibleRows);
+    if (!row) {
+      showMessage('No favorite matches the current filters.', true);
+      return;
+    }
+    openExternalUrl(getComicUrl(row.id));
+  }, { title: 'Open a random favorite from the current filters' });
+  const fetchButton = button('Fetch missing titles', fetchMissingFavoriteTitles, {
+    title: 'Fetch missing titles for favorite comics from xkcd metadata',
   });
+
+  const updateResults = () => {
+    const rows = buildFavoriteRows({
+      comics: snapshot.comics,
+      metadataById,
+      latestComicId: snapshot.meta.latestKnownComicId,
+    });
+    visibleRows = sortFavoriteRows(filterFavoriteRows(rows, {
+      query: favoriteLibraryState.query,
+      ratingFilter: favoriteLibraryState.ratingFilter,
+    }), favoriteLibraryState.sortMode);
+    const missingCount = rows.filter((row) => !row.metadataCached).length;
+    randomButton.disabled = visibleRows.length === 0;
+    fetchButton.disabled = missingCount === 0 || favoriteMetadataRefreshPending;
+    fetchButton.title = missingCount === 0
+      ? 'All favorite titles are cached'
+      : 'Fetch missing titles for favorite comics from xkcd metadata';
+    results.replaceChildren(renderFavoriteResults(rows, visibleRows));
+  };
+
+  searchInput.addEventListener('input', () => {
+    favoriteLibraryState.query = searchInput.value;
+    updateResults();
+  });
+  ratingFilter.addEventListener('change', () => {
+    favoriteLibraryState.ratingFilter = ratingFilter.value;
+    updateResults();
+  });
+  sortMode.addEventListener('change', () => {
+    favoriteLibraryState.sortMode = sortMode.value;
+    updateResults();
+  });
+
+  section.append(element('div', {
+    className: 'row favorite-library-controls',
+    children: [
+      field('Search', searchInput),
+      field('Filter', ratingFilter),
+      field('Sort', sortMode),
+      element('div', {
+        className: 'row favorite-library-actions',
+        children: [randomButton, fetchButton],
+      }),
+    ],
+  }));
+  section.append(results);
+  updateResults();
+  return section;
+}
+
+/**
+ * @param {import('../shared/favorites-library.js').FavoriteLibraryRow[]} rows
+ * @param {import('../shared/favorites-library.js').FavoriteLibraryRow[]} visibleRows
+ * @returns {DocumentFragment}
+ */
+function renderFavoriteResults(rows, visibleRows) {
+  const fragment = document.createDocumentFragment();
+  const missingCount = rows.filter((row) => !row.metadataCached).length;
+  const summary = [
+    `${rows.length} favorite${rows.length === 1 ? '' : 's'}`,
+    `${visibleRows.length} shown`,
+  ];
+  if (missingCount > 0) {
+    summary.push(`${missingCount} title${missingCount === 1 ? '' : 's'} not cached`);
+  }
+  fragment.append(element('p', { className: 'muted favorite-library-summary', text: summary.join(' · ') }));
+
+  if (visibleRows.length === 0) {
+    fragment.append(element('p', { className: 'muted', text: 'No favorites match the current filters.' }));
+    return fragment;
+  }
+
+  fragment.append(renderFavoriteTable(visibleRows));
+  return fragment;
+}
+
+/**
+ * @param {import('../shared/favorites-library.js').FavoriteLibraryRow[]} rows
+ * @returns {HTMLElement}
+ */
+function renderFavoriteTable(rows) {
   const table = element('table');
   table.append(element('thead', {
     children: [element('tr', {
@@ -221,43 +359,57 @@ function renderFavorites() {
     })],
   }));
   const body = element('tbody');
-  for (const id of sorted) {
-    const state = getComicState(snapshot.comics, id);
-    const metadata = metadataById[String(id)];
+  for (const row of rows) {
     body.append(element('tr', {
       children: [
-        element('td', { text: `#${id}` }),
-        element('td', { text: metadata?.title ?? 'Metadata not cached' }),
-        element('td', { text: state.rating ? `${state.rating}/10` : '-' }),
         element('td', {
           children: [
-            element('a', { text: 'xkcd', attrs: { href: getComicUrl(id) } }),
+            element('a', {
+              text: `#${row.id}`,
+              attrs: { href: getComicUrl(row.id), target: '_blank', rel: 'noreferrer' },
+            }),
+          ],
+        }),
+        element('td', {
+          className: row.title ? '' : 'muted',
+          text: row.title ?? 'Title not cached yet',
+        }),
+        element('td', { text: row.rating ? `${row.rating}/10` : '-' }),
+        element('td', {
+          children: [
+            element('a', { text: 'xkcd', attrs: { href: getComicUrl(row.id), target: '_blank', rel: 'noreferrer' } }),
             document.createTextNode(' · '),
-            element('a', { text: 'Explain', attrs: { href: getExplainXkcdUrl(id) } }),
+            element('a', { text: 'Explain', attrs: { href: getExplainXkcdUrl(row.id), target: '_blank', rel: 'noreferrer' } }),
           ],
         }),
       ],
     }));
   }
   table.append(body);
-  section.append(table);
-  section.append(element('div', {
-    className: 'row',
-    children: [button('Fetch missing favorite titles', fetchMissingFavoriteTitles)],
-  }));
-  return section;
+  return element('div', { className: 'table-wrapper', children: [table] });
 }
 
 async function fetchMissingFavoriteTitles() {
   const favoriteIds = getFavoriteComicIds(snapshot.comics, snapshot.meta.latestKnownComicId);
   const missing = favoriteIds.filter((id) => !metadataById[String(id)]);
-  const response = await chrome.runtime.sendMessage({
-    type: 'xrt:cache-favorite-metadata',
-    comicIds: missing,
-    limit: 250,
-  });
-  metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
-  render();
+  if (missing.length === 0) {
+    showMessage('Favorite title cache is already complete.');
+    return;
+  }
+
+  favoriteMetadataRefreshPending = true;
+  let response = null;
+  try {
+    response = await chrome.runtime.sendMessage({
+      type: 'xrt:cache-favorite-metadata',
+      comicIds: missing,
+      limit: 250,
+    });
+    metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
+  } finally {
+    favoriteMetadataRefreshPending = false;
+    render();
+  }
   showMessage(response?.ok === false
     ? 'Some favorite titles could not be fetched.'
     : 'Favorite title cache updated.');
@@ -670,9 +822,9 @@ async function refreshMissingFavoriteMetadata(favoriteIds) {
       limit: 250,
     });
     metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
-    render();
   } finally {
     favoriteMetadataRefreshPending = false;
+    render();
   }
 }
 
