@@ -15,6 +15,10 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 <details>
 <summary>More screenshots</summary>
 
+### Toolbar Popup
+
+![Toolbar popup](assets/store/screenshots/02-popup.png)
+
 ### Dashboard Overview
 
 ![Dashboard overview](assets/store/screenshots/03-dashboard-overview.png)

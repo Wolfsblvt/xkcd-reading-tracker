@@ -36,6 +36,7 @@ test('store promo assets have Chrome-required dimensions', () => {
 test('store screenshots have Chrome-required dimensions', () => {
   for (const path of [
     'assets/store/screenshots/01-comic-page.png',
+    'assets/store/screenshots/02-popup.png',
     'assets/store/screenshots/03-dashboard-overview.png',
     'assets/store/screenshots/04-dashboard-settings.png',
     'assets/store/screenshots/05-dashboard-diagnostics.png',
