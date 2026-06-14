@@ -1,6 +1,9 @@
 # xkcd Reading Tracker
 
 [![extension version](https://img.shields.io/badge/dynamic/json?color=blue&label=extension%20version&query=%24.version&url=https%3A%2F%2Fraw.githubusercontent.com%2FWolfsblvt%2Fxkcd-reading-tracker%2Fmain%2Fmanifest.json)](https://github.com/Wolfsblvt/xkcd-reading-tracker)
+[![Chrome Web Store Version](https://img.shields.io/chrome-web-store/v/daemkaclgpcpeekkhnnkleeajbhnbkmd?label=chrome%20web%20store)](https://chromewebstore.google.com/detail/daemkaclgpcpeekkhnnkleeajbhnbkmd)
+[![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/daemkaclgpcpeekkhnnkleeajbhnbkmd?label=users)](https://chromewebstore.google.com/detail/daemkaclgpcpeekkhnnkleeajbhnbkmd)
+[![Chrome Web Store Rating](https://img.shields.io/chrome-web-store/rating/daemkaclgpcpeekkhnnkleeajbhnbkmd?label=rating)](https://chromewebstore.google.com/detail/daemkaclgpcpeekkhnnkleeajbhnbkmd)
 [![release](https://img.shields.io/github/v/release/Wolfsblvt/xkcd-reading-tracker?color=lightblue&label=release)](https://github.com/Wolfsblvt/xkcd-reading-tracker/releases/latest)
 [![tests](https://github.com/Wolfsblvt/xkcd-reading-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Wolfsblvt/xkcd-reading-tracker/actions/workflows/tests.yml)
 [![Manifest V3](https://img.shields.io/badge/manifest-v3-4c8eda)](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3)
