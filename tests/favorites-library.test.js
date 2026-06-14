@@ -26,15 +26,15 @@ test('favorite library rows combine favorite state with cached metadata', () => 
     comics: {
       1: { r: 1 },
       2: { f: 1, rating: 8 },
-      4: { f: 1 },
+      4: { r: 1, f: 1 },
       12: { f: 1, rating: 3 },
     },
   });
 
   assert.deepEqual(rows, [
-    { id: 2, rating: 8, title: 'Petit Trees', safeTitle: 'Petit Trees', imageUrl: 'https://imgs.xkcd.com/comics/petit_trees.png', metadataCached: true },
-    { id: 4, rating: null, title: 'Stove Ownership', safeTitle: 'Stove Ownership', imageUrl: 'https://imgs.xkcd.com/comics/stove_ownership.png', metadataCached: true },
-    { id: 12, rating: 3, title: 'Poisson', safeTitle: 'Poisson', imageUrl: 'https://imgs.xkcd.com/comics/poisson.png', metadataCached: true },
+    { id: 2, read: false, rating: 8, title: 'Petit Trees', safeTitle: 'Petit Trees', imageUrl: 'https://imgs.xkcd.com/comics/petit_trees.png', metadataCached: true },
+    { id: 4, read: true, rating: null, title: 'Stove Ownership', safeTitle: 'Stove Ownership', imageUrl: 'https://imgs.xkcd.com/comics/stove_ownership.png', metadataCached: true },
+    { id: 12, read: false, rating: 3, title: 'Poisson', safeTitle: 'Poisson', imageUrl: 'https://imgs.xkcd.com/comics/poisson.png', metadataCached: true },
   ]);
 });
 
@@ -55,9 +55,9 @@ test('favorite library search matches comic number and title', () => {
 
 test('favorite library filters rated and unrated favorites', () => {
   const rows = [
-    { id: 1, rating: 5, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
-    { id: 2, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
-    { id: 3, rating: 10, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 1, read: false, rating: 5, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 2, read: false, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 3, read: false, rating: 10, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
   ];
 
   assert.deepEqual(filterFavoriteRows(rows, { ratingFilter: FAVORITE_RATING_FILTERS.RATED }).map((row) => row.id), [1, 3]);
@@ -66,9 +66,9 @@ test('favorite library filters rated and unrated favorites', () => {
 
 test('favorite library sorts ratings with unrated favorites last', () => {
   const rows = [
-    { id: 1, rating: 5, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
-    { id: 2, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
-    { id: 3, rating: 10, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 1, read: false, rating: 5, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 2, read: false, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 3, read: false, rating: 10, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
   ];
 
   assert.deepEqual(sortFavoriteRows(rows, FAVORITE_SORT_MODES.RATING_DESC).map((row) => row.id), [3, 1, 2]);
@@ -77,9 +77,9 @@ test('favorite library sorts ratings with unrated favorites last', () => {
 
 test('favorite library title sort keeps uncached metadata last', () => {
   const rows = [
-    { id: 1, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
-    { id: 2, rating: null, title: 'Beta', safeTitle: 'Beta', imageUrl: null, metadataCached: true },
-    { id: 3, rating: null, title: 'Alpha', safeTitle: 'Alpha', imageUrl: null, metadataCached: true },
+    { id: 1, read: false, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 2, read: false, rating: null, title: 'Beta', safeTitle: 'Beta', imageUrl: null, metadataCached: true },
+    { id: 3, read: false, rating: null, title: 'Alpha', safeTitle: 'Alpha', imageUrl: null, metadataCached: true },
   ];
 
   assert.deepEqual(sortFavoriteRows(rows, FAVORITE_SORT_MODES.TITLE_ASC).map((row) => row.id), [3, 2, 1]);
@@ -88,9 +88,9 @@ test('favorite library title sort keeps uncached metadata last', () => {
 
 test('favorite library random row uses visible favorites', () => {
   const rows = [
-    { id: 1, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
-    { id: 2, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
-    { id: 3, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 1, read: false, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 2, read: false, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
+    { id: 3, read: false, rating: null, title: null, safeTitle: null, imageUrl: null, metadataCached: false },
   ];
 
   assert.equal(getRandomFavoriteRow(rows, () => 0.5)?.id, 2);
@@ -100,6 +100,7 @@ test('favorite library random row uses visible favorites', () => {
 test('favorite library pagination clamps page and uses supported page sizes', () => {
   const rows = Array.from({ length: 23 }, (_, index) => ({
     id: index + 1,
+    read: false,
     rating: null,
     title: null,
     safeTitle: null,

@@ -13,6 +13,8 @@ import {
   sortFavoriteRows,
 } from '../shared/favorites-library.js';
 import { getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
+import { formatProgressSummary } from '../shared/progress-format.js';
+import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
 import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
 import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
@@ -59,7 +61,7 @@ function element(tagName, options = {}) {
 /**
  * @param {string} text
  * @param {() => void | Promise<void>} onClick
- * @param {{ className?: string, disabled?: boolean, title?: string }} [options]
+ * @param {{ className?: string, disabled?: boolean, pressed?: boolean, title?: string }} [options]
  * @returns {HTMLButtonElement}
  */
 function button(text, onClick, options = {}) {
@@ -68,6 +70,9 @@ function button(text, onClick, options = {}) {
     text,
     attrs: { type: 'button', title: options.title ?? text },
   }));
+  if (options.pressed != null) {
+    node.setAttribute('aria-pressed', String(options.pressed));
+  }
   node.disabled = Boolean(options.disabled);
   node.addEventListener('click', async () => {
     try {
@@ -220,7 +225,7 @@ function renderOverview() {
   const progress = calculateProgress(snapshot.comics, snapshot.meta.latestKnownComicId);
   const section = element('section', { attrs: { id: 'overview' } });
   section.append(element('h2', { text: 'Overview' }));
-  section.append(element('p', { text: `${progress.read} of ${progress.total} known comics read. ${progress.unread} unread.` }));
+  section.append(element('p', { text: formatProgressSummary(progress) }));
   section.append(element('progress', { attrs: { max: '100', value: String(progress.percent), 'aria-label': 'Reading progress' } }));
 
   const row = element('div', { className: 'row' });
@@ -440,11 +445,75 @@ function renderFavoritePagination(page, onPageChange) {
 }
 
 /**
+ * @param {number} comicId
+ * @param {number | null} rating
+ * @returns {HTMLElement}
+ */
+function renderFavoriteRatingControl(comicId, rating) {
+  if (snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.HIDDEN) {
+    return element('span', { className: 'muted', text: rating ? `${rating}/10` : '-' });
+  }
+
+  const wrapper = element('div', {
+    className: `xrt-rating-control xrt-rating-${snapshot.settings.ratingDisplay}`,
+    attrs: { role: 'group', 'aria-label': `Rating for xkcd #${comicId}` },
+  });
+  const buttons = getRatingButtons(snapshot.settings.ratingDisplay, rating);
+
+  if (snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.TEN_POINT) {
+    const valueLabel = element('span', { className: 'xrt-rating-value', text: formatPreviewRatingValue(rating, null) });
+    const setPreview = (previewRating) => {
+      valueLabel.textContent = formatPreviewRatingValue(rating, previewRating);
+    };
+    for (const descriptor of buttons) {
+      const dot = button(descriptor.text, async () => {
+        snapshot = await storageService.updateComicState(comicId, { rating: descriptor.rating });
+        await refresh();
+      }, {
+        className: descriptor.className,
+        pressed: descriptor.pressed,
+        title: descriptor.title,
+      });
+      dot.addEventListener('mouseenter', () => setPreview(descriptor.rating));
+      dot.addEventListener('focus', () => setPreview(descriptor.rating));
+      dot.addEventListener('mouseleave', () => setPreview(null));
+      dot.addEventListener('blur', () => setPreview(null));
+      wrapper.append(dot);
+    }
+    wrapper.append(valueLabel);
+  } else {
+    for (const descriptor of buttons) {
+      wrapper.append(button(descriptor.text, async () => {
+        snapshot = await storageService.updateComicState(comicId, { rating: descriptor.rating });
+        await refresh();
+      }, {
+        className: descriptor.className,
+        pressed: descriptor.pressed,
+        title: descriptor.title,
+      }));
+    }
+  }
+
+  wrapper.append(button('Clear', async () => {
+    if (rating) {
+      snapshot = await storageService.updateComicState(comicId, { rating: null });
+      await refresh();
+    }
+  }, {
+    className: 'xrt-rating-clear',
+    disabled: !rating,
+    title: rating ? 'Clear this comic rating' : 'No rating to clear',
+  }));
+
+  return wrapper;
+}
+
+/**
  * @param {import('../shared/favorites-library.js').FavoriteLibraryRow[]} rows
  * @returns {HTMLElement}
  */
 function renderFavoriteTable(rows) {
-  const table = element('table');
+  const table = element('table', { className: 'favorite-table' });
   table.append(element('thead', {
     children: [element('tr', {
       children: [
@@ -453,6 +522,7 @@ function renderFavoriteTable(rows) {
         element('th', { text: 'Title' }),
         element('th', { text: 'Rating' }),
         element('th', { text: 'Links' }),
+        element('th', { text: 'Actions' }),
       ],
     })],
   }));
@@ -473,12 +543,34 @@ function renderFavoriteTable(rows) {
           className: row.title ? '' : 'muted',
           text: row.title ?? 'Title not cached yet',
         }),
-        element('td', { text: row.rating ? `${row.rating}/10` : '-' }),
+        element('td', {
+          className: 'favorite-rating-cell',
+          children: [renderFavoriteRatingControl(row.id, row.rating)],
+        }),
         element('td', {
           children: [
             element('a', { text: 'xkcd', attrs: { href: getComicUrl(row.id), target: '_blank', rel: 'noreferrer' } }),
             document.createTextNode(' · '),
             element('a', { text: 'Explain', attrs: { href: getExplainXkcdUrl(row.id), target: '_blank', rel: 'noreferrer' } }),
+          ],
+        }),
+        element('td', {
+          className: 'favorite-actions-cell',
+          children: [
+            button('Read', async () => {
+              snapshot = await storageService.updateComicState(row.id, { read: !row.read });
+              await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
+              await refresh();
+            }, {
+              pressed: row.read,
+              title: row.read ? 'Mark this favorite unread' : 'Mark this favorite read',
+            }),
+            button('Unfav', async () => {
+              snapshot = await storageService.updateComicState(row.id, { favorite: false });
+              await refresh();
+            }, {
+              title: 'Remove this comic from favorites',
+            }),
           ],
         }),
       ],

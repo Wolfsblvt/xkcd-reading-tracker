@@ -46,8 +46,8 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Use xkcd-style nav labels (`Got it`, `Neat`, `Huh?`) or generic labels.
 - Show xkcd alt text below the comic or after active-viewing delay.
 - Open the matching Explain xkcd page with a small `Huh?` or `Explain` link.
-- View reading progress and unread ranges.
-- Search, filter, sort, page through, preview, and randomly open favorite comics from the dashboard.
+- View reading progress, percentages, latest-comic state, and unread ranges.
+- Search, filter, sort, page through, preview, rate, mark read/unread, unfavorite, and randomly open favorite comics from the dashboard.
 - Jump to unread range starts/ends and set a range as the next reading anchor.
 - Bulk mark comic numbers or ranges.
 - Export and import complete JSON backups of user-created state.
@@ -67,9 +67,9 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 
 On xkcd comic pages, use the injected tracker panel below the comic to mark read state, favorite, rate, set the continue point, change browse mode, open Explain xkcd, and view progress.
 
-Use the toolbar popup for quick progress, current-tab controls, new-comic status, unread preview, and compact bulk marking.
+Use the toolbar popup for quick progress, current-tab controls, rating, new-comic status, latest-comic access, unread preview, and compact bulk marking.
 
-Use the dashboard/options page for settings, searchable favorite comics with lazy thumbnails, unread ranges, import/export, reset, and diagnostics.
+Use the dashboard/options page for settings, searchable favorite comics with lazy thumbnails and inline actions, unread ranges, import/export, reset, and diagnostics.
 
 ## Development
 

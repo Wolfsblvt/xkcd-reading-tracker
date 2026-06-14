@@ -1,6 +1,8 @@
 import { RATING_DISPLAY_MODES } from '../shared/constants.js';
 import { calculateProgress, getComicState, getUnreadComicIds, isValidComicId } from '../shared/comic-state.js';
 import { getComicUrl } from '../shared/navigation.js';
+import { formatProgressSummary } from '../shared/progress-format.js';
+import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
 import { getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
 import { storageService } from '../storage/storage-service.js';
 
@@ -35,11 +37,12 @@ function element(tagName, options = {}) {
 /**
  * @param {string} text
  * @param {() => void | Promise<void>} onClick
- * @param {{ pressed?: boolean, disabled?: boolean, title?: string }} [options]
+ * @param {{ className?: string, pressed?: boolean, disabled?: boolean, title?: string }} [options]
  * @returns {HTMLButtonElement}
  */
 function button(text, onClick, options = {}) {
   const node = /** @type {HTMLButtonElement} */ (element('button', {
+    className: options.className,
     text,
     attrs: { type: 'button', title: options.title ?? text },
   }));
@@ -128,7 +131,7 @@ function renderProgressSection() {
   const progress = calculateProgress(snapshot.comics, snapshot.meta.latestKnownComicId);
   const section = element('section', { children: [element('h1', { text: 'xkcd Tracker' })] });
   section.append(element('p', {
-    text: `${progress.read} / ${progress.total} read (${progress.percent}%).`,
+    text: formatProgressSummary(progress),
   }));
   const bar = /** @type {HTMLProgressElement} */ (element('progress', {
     attrs: { max: '100', value: String(progress.percent), 'aria-label': 'Reading progress' },
@@ -158,26 +161,45 @@ function renderNewComicSection() {
   const section = element('section', { className: 'section', children: [element('h2', { text: 'New Comic' })] });
   const lastNew = snapshot.meta.lastNewComicId;
   const acknowledged = snapshot.meta.acknowledgedLatestComicId ?? 0;
+  const latestKnown = snapshot.meta.latestKnownComicId;
 
   if (!lastNew || lastNew <= acknowledged) {
     section.append(element('p', { className: 'muted', text: 'No newly published comic is waiting.' }));
-    return section;
+  } else {
+    section.append(element('p', { text: `xkcd #${lastNew} is new.` }));
+    section.append(element('div', {
+      className: 'row',
+      children: [
+        button('Open', () => openTab(getComicUrl(lastNew)), {
+          title: `Open new xkcd comic #${lastNew}`,
+        }),
+        button('Acknowledge', async () => {
+          await storageService.acknowledgeLatestComic(lastNew);
+          await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
+          await refresh();
+        }, { title: 'Clear the new-comic badge without marking the comic read' }),
+      ],
+    }));
   }
 
-  section.append(element('p', { text: `xkcd #${lastNew} is new.` }));
-  section.append(element('div', {
-    className: 'row',
-    children: [
-      button('Open', () => openTab(getComicUrl(lastNew)), {
-        title: `Open new xkcd comic #${lastNew}`,
-      }),
-      button('Acknowledge', async () => {
-        await storageService.acknowledgeLatestComic(lastNew);
-        await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
-        await refresh();
-      }, { title: 'Clear the new-comic badge without marking the comic read' }),
-    ],
-  }));
+  if (latestKnown) {
+    section.append(element('p', {
+      className: 'latest-comic-link',
+      children: [
+        document.createTextNode('Latest known comic: '),
+        element('a', {
+          text: `#${latestKnown}`,
+          attrs: {
+            href: getComicUrl(latestKnown),
+            target: '_blank',
+            rel: 'noreferrer',
+            title: `Open latest known xkcd comic #${latestKnown}`,
+          },
+        }),
+      ],
+    }));
+  }
+
   return section;
 }
 
@@ -219,28 +241,71 @@ function renderActiveComicSection() {
   section.append(row);
 
   if (snapshot.settings.ratingDisplay !== RATING_DISPLAY_MODES.HIDDEN) {
-    const ratingRow = element('div', { className: 'row' });
-    const label = element('label', { text: 'Rating ' });
-    const select = /** @type {HTMLSelectElement} */ (element('select', { attrs: { 'aria-label': 'Current comic rating' } }));
-    select.append(element('option', { text: 'None', attrs: { value: '' } }));
-    for (let rating = 1; rating <= 10; rating += 1) {
-      const option = /** @type {HTMLOptionElement} */ (element('option', {
-        text: snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR ? `${rating / 2} stars` : `${rating}/10`,
-        attrs: { value: String(rating) },
-      }));
-      option.selected = state.rating === rating;
-      select.append(option);
-    }
-    select.addEventListener('change', async () => {
-      await storageService.updateComicState(activeComic.id, { rating: select.value ? Number(select.value) : null });
-      await refresh();
-    });
-    label.append(select);
-    ratingRow.append(label);
-    section.append(ratingRow);
+    section.append(renderRatingControl(activeComic.id, state.rating));
   }
 
   return section;
+}
+
+/**
+ * @param {number} comicId
+ * @param {number | null} rating
+ * @returns {HTMLElement}
+ */
+function renderRatingControl(comicId, rating) {
+  const wrapper = element('div', {
+    className: `row xrt-rating-control xrt-rating-${snapshot.settings.ratingDisplay}`,
+    attrs: { role: 'group', 'aria-label': 'Current comic rating' },
+  });
+  wrapper.append(element('span', { className: 'xrt-rating-title', text: 'Rating' }));
+
+  const buttons = getRatingButtons(snapshot.settings.ratingDisplay, rating);
+  if (snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.TEN_POINT) {
+    const valueLabel = element('span', { className: 'xrt-rating-value', text: formatPreviewRatingValue(rating, null) });
+    const setPreview = (previewRating) => {
+      valueLabel.textContent = formatPreviewRatingValue(rating, previewRating);
+    };
+    for (const descriptor of buttons) {
+      const dot = button(descriptor.text, async () => {
+        await storageService.updateComicState(comicId, { rating: descriptor.rating });
+        await refresh();
+      }, {
+        className: descriptor.className,
+        pressed: descriptor.pressed,
+        title: descriptor.title,
+      });
+      dot.addEventListener('mouseenter', () => setPreview(descriptor.rating));
+      dot.addEventListener('focus', () => setPreview(descriptor.rating));
+      dot.addEventListener('mouseleave', () => setPreview(null));
+      dot.addEventListener('blur', () => setPreview(null));
+      wrapper.append(dot);
+    }
+    wrapper.append(valueLabel);
+  } else {
+    for (const descriptor of buttons) {
+      wrapper.append(button(descriptor.text, async () => {
+        await storageService.updateComicState(comicId, { rating: descriptor.rating });
+        await refresh();
+      }, {
+        className: descriptor.className,
+        pressed: descriptor.pressed,
+        title: descriptor.title,
+      }));
+    }
+  }
+
+  wrapper.append(button('Clear', async () => {
+    if (rating) {
+      await storageService.updateComicState(comicId, { rating: null });
+      await refresh();
+    }
+  }, {
+    className: 'xrt-rating-clear',
+    disabled: !rating,
+    title: rating ? 'Clear the active comic rating' : 'No rating to clear',
+  }));
+
+  return wrapper;
 }
 
 function renderUnreadPreview() {
@@ -255,18 +320,31 @@ function renderUnreadPreview() {
   for (const range of ranges.slice(0, 4)) {
     const item = element('span', { className: 'range-item' });
     item.append(
-      element('a', { text: String(range.start), attrs: { href: getComicUrl(range.start), title: `Open unread range start #${range.start}` } })
+      element('a', {
+        text: String(range.start),
+        attrs: {
+          href: getComicUrl(range.start),
+          target: '_blank',
+          rel: 'noreferrer',
+          title: `Open unread range start #${range.start}`,
+        },
+      })
     );
     if (range.start !== range.end) {
       item.append(
         document.createTextNode('-'),
-        element('a', { text: String(range.end), attrs: { href: getComicUrl(range.end), title: `Open unread range end #${range.end}` } })
+        element('a', {
+          text: String(range.end),
+          attrs: {
+            href: getComicUrl(range.end),
+            target: '_blank',
+            rel: 'noreferrer',
+            title: `Open unread range end #${range.end}`,
+          },
+        })
       );
     }
-    item.append(button('Read next', async () => {
-      await storageService.setContinuePoint(range.start);
-      await refresh();
-    }, { title: `Set continue point to unread range start #${range.start}` }));
+    item.append(element('span', { className: 'muted', text: `(${range.end - range.start + 1})` }));
     rangeList.append(item);
   }
   if (ranges.length > 4) {

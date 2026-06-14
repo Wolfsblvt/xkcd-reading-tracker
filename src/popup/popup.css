@@ -14,6 +14,14 @@
   --xrt-button-hover: #fff;
   --xrt-danger: #9b111e;
   --xrt-link: #00e;
+  --xrt-nav-bg: #6e7b91;
+  --xrt-nav-color: #fff;
+  --xrt-nav-border: #333;
+  --xrt-nav-radius: 3px;
+  --xrt-nav-font-weight: 600;
+  --xrt-nav-padding: 1.5px 12px;
+  --xrt-nav-hover-bg: #fff;
+  --xrt-nav-hover-color: #6e7b91;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -99,19 +107,28 @@ select {
 }
 
 button {
-  border: 1px solid var(--xrt-text);
-  background: var(--xrt-button-bg);
-  padding: 3px 8px;
+  min-height: 24px;
+  border: 1.5px solid var(--xrt-nav-border);
+  border-radius: var(--xrt-nav-radius);
+  background: var(--xrt-nav-bg);
+  color: var(--xrt-nav-color);
+  padding: var(--xrt-nav-padding);
+  font-weight: var(--xrt-nav-font-weight);
+  line-height: 1.2;
   cursor: pointer;
 }
 
 button:hover:not(:disabled),
 button:focus-visible {
-  background: var(--xrt-button-hover);
+  background: var(--xrt-nav-hover-bg);
+  color: var(--xrt-nav-hover-color);
 }
 
-button[aria-pressed="true"] {
-  background: var(--xrt-border);
+button[aria-pressed="true"]:not(.xrt-rating-button) {
+  background: var(--xrt-nav-hover-bg);
+  color: var(--xrt-nav-hover-color);
+  box-shadow: inset 0 0 0 1px var(--xrt-nav-hover-color);
+  outline: none;
 }
 
 button:disabled {
@@ -159,8 +176,102 @@ select {
   padding: 3px 0;
 }
 
-.range-item button {
-  margin-left: 3px;
+.latest-comic-link {
+  margin-top: 6px;
+}
+
+.xrt-rating-control {
+  flex-wrap: nowrap;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.xrt-rating-title,
+.xrt-rating-value {
+  margin: 0 4px;
+  font-weight: 600;
+}
+
+.xrt-rating-value {
+  min-width: 5ch;
+  text-align: left;
+}
+
+button.xrt-rating-button,
+button.xrt-rating-clear {
+  display: inline-flex;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  line-height: 1;
+  outline-offset: 0;
+}
+
+button.xrt-rating-button:hover:not(:disabled),
+button.xrt-rating-button:focus-visible,
+button.xrt-rating-button[aria-pressed="true"],
+button.xrt-rating-clear:hover:not(:disabled),
+button.xrt-rating-clear:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  outline: none;
+}
+
+.xrt-star-button {
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", Lucida, Helvetica, sans-serif;
+  font-size: 16px;
+}
+
+.xrt-star-empty {
+  opacity: 0.35;
+}
+
+.xrt-star-half {
+  opacity: 1;
+}
+
+.xrt-dot-button {
+  font-size: 15px;
+}
+
+button.xrt-rating-clear {
+  width: 44px;
+  min-width: 44px;
+}
+
+button.xrt-rating-clear:disabled {
+  visibility: visible;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.xrt-rating-ten-point {
+  gap: 0;
+}
+
+.xrt-rating-ten-point button.xrt-rating-button {
+  width: 18px;
+  min-width: 18px;
+}
+
+.xrt-rating-ten-point .xrt-rating-title,
+.xrt-rating-ten-point .xrt-rating-value {
+  margin: 0 3px;
+}
+
+.xrt-rating-ten-point button.xrt-rating-clear {
+  width: 38px;
+  min-width: 38px;
 }
 
 .muted {
@@ -182,4 +293,3 @@ progress {
   width: 100%;
   height: 14px;
 }
-

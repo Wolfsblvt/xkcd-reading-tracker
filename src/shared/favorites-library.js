@@ -21,6 +21,7 @@ export const DEFAULT_FAVORITE_PAGE_SIZE = 10;
 /**
  * @typedef {object} FavoriteLibraryRow
  * @property {number} id
+ * @property {boolean} read
  * @property {number | null} rating
  * @property {string | null} title
  * @property {string | null} safeTitle
@@ -38,6 +39,7 @@ export function buildFavoriteRows({ comics, metadataById, latestComicId }) {
     const metadata = metadataById[String(id)] ?? null;
     return {
       id,
+      read: state.read,
       rating: state.rating,
       title: typeof metadata?.title === 'string' && metadata.title ? metadata.title : null,
       safeTitle: typeof metadata?.safeTitle === 'string' && metadata.safeTitle ? metadata.safeTitle : null,

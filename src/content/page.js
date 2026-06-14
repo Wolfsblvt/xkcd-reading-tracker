@@ -1,6 +1,8 @@
 import { ALT_TEXT_MODES, BROWSE_MODES, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES } from '../shared/constants.js';
 import { calculateNavigation, getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
 import { calculateProgress, getComicState, isValidComicId } from '../shared/comic-state.js';
+import { formatCompactProgressSummary } from '../shared/progress-format.js';
+import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
 import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
 
@@ -439,40 +441,36 @@ function renderRatingControl(state) {
     const label = element('span', { className: 'xrt-rating-title', text: 'Rating' });
     wrapper.append(label);
 
+    const buttons = getRatingButtons(snapshot.settings.ratingDisplay, state.rating);
     if (snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR) {
-      for (let star = 1; star <= 5; star += 1) {
-        const fullValue = star * 2;
-        const halfValue = fullValue - 1;
-        const starState = state.rating >= fullValue ? 'full' : state.rating === halfValue ? 'half' : 'empty';
-        const starText = starState === 'full' ? '★' : starState === 'half' ? '⯨' : '☆';
-        wrapper.append(button(starText, async () => {
+      for (const descriptor of buttons) {
+        wrapper.append(button(descriptor.text, async () => {
           cancelAutoReadTimer();
-          const nextRating = state.rating === fullValue ? halfValue : fullValue;
-          snapshot = await storageService.updateComicState(currentComic.id, { rating: nextRating });
+          snapshot = await storageService.updateComicState(currentComic.id, { rating: descriptor.rating });
           render();
         }, {
-          className: `xrt-rating-button xrt-star-button xrt-star-${starState}`,
-          pressed: state.rating >= halfValue,
-          title: state.rating === fullValue ? `Set ${star - 0.5} stars` : `Set ${star} stars`,
+          className: descriptor.className,
+          pressed: descriptor.pressed,
+          title: descriptor.title,
         }));
       }
     } else {
-      const valueLabel = element('span', { className: 'xrt-rating-value', text: state.rating ? `${state.rating}/10` : '0/10' });
+      const valueLabel = element('span', { className: 'xrt-rating-value', text: formatPreviewRatingValue(state.rating, null) });
       const setPreview = (rating) => {
-        valueLabel.textContent = rating ? `${rating}/10` : state.rating ? `${state.rating}/10` : '0/10';
+        valueLabel.textContent = formatPreviewRatingValue(state.rating, rating);
       };
-      for (let rating = 1; rating <= 10; rating += 1) {
-        const dot = button(state.rating && rating <= state.rating ? '●' : '○', async () => {
+      for (const descriptor of buttons) {
+        const dot = button(descriptor.text, async () => {
           cancelAutoReadTimer();
-          snapshot = await storageService.updateComicState(currentComic.id, { rating });
+          snapshot = await storageService.updateComicState(currentComic.id, { rating: descriptor.rating });
           render();
         }, {
-          className: 'xrt-rating-button xrt-dot-button',
-          pressed: state.rating === rating,
-          title: `Set rating to ${rating}/10`,
+          className: descriptor.className,
+          pressed: descriptor.pressed,
+          title: descriptor.title,
         });
-        dot.addEventListener('mouseenter', () => setPreview(rating));
-        dot.addEventListener('focus', () => setPreview(rating));
+        dot.addEventListener('mouseenter', () => setPreview(descriptor.rating));
+        dot.addEventListener('focus', () => setPreview(descriptor.rating));
         dot.addEventListener('mouseleave', () => setPreview(null));
         dot.addEventListener('blur', () => setPreview(null));
         wrapper.append(dot);
@@ -505,7 +503,7 @@ function renderProgress() {
 
   const progress = calculateProgress(snapshot.comics, snapshot.meta.latestKnownComicId);
   const wrapper = element('div', { className: 'xrt-progress' });
-  wrapper.append(element('span', { text: `${progress.read} of ${progress.total} comics read (${progress.percent}%).` }));
+  wrapper.append(element('span', { text: formatCompactProgressSummary(progress) }));
 
   if (snapshot.settings.progressDisplay === PROGRESS_DISPLAY_MODES.BAR) {
     const bar = /** @type {HTMLProgressElement} */ (element('progress', {

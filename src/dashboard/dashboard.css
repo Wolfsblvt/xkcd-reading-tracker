@@ -135,6 +135,10 @@ button:focus-visible {
   background: var(--xrt-button-hover);
 }
 
+button[aria-pressed="true"]:not(.xrt-rating-button) {
+  background: var(--xrt-border);
+}
+
 button:disabled,
 input:disabled,
 select:disabled {
@@ -209,6 +213,106 @@ th {
 
 .table-wrapper {
   overflow-x: auto;
+}
+
+.favorite-table {
+  min-width: 900px;
+}
+
+.favorite-table th:nth-child(3),
+.favorite-table td:nth-child(3) {
+  min-width: 160px;
+}
+
+.favorite-rating-cell,
+.favorite-actions-cell {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.favorite-rating-cell {
+  min-width: 285px;
+}
+
+.favorite-actions-cell {
+  min-width: 120px;
+}
+
+.favorite-actions-cell button + button {
+  margin-left: 6px;
+}
+
+.xrt-rating-control {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.xrt-rating-value {
+  min-width: 5ch;
+  margin: 0 4px;
+  font-weight: 600;
+  text-align: left;
+}
+
+button.xrt-rating-button,
+button.xrt-rating-clear {
+  display: inline-flex;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  line-height: 1;
+  outline-offset: 0;
+}
+
+button.xrt-rating-button:hover:not(:disabled),
+button.xrt-rating-button:focus-visible,
+button.xrt-rating-button[aria-pressed="true"],
+button.xrt-rating-clear:hover:not(:disabled),
+button.xrt-rating-clear:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  outline: none;
+}
+
+.xrt-star-button {
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", Lucida, Helvetica, sans-serif;
+  font-size: 16px;
+}
+
+.xrt-star-empty {
+  opacity: 0.35;
+}
+
+.xrt-star-half {
+  opacity: 1;
+}
+
+.xrt-dot-button {
+  font-size: 15px;
+}
+
+button.xrt-rating-clear {
+  width: 44px;
+  min-width: 44px;
+}
+
+button.xrt-rating-clear:disabled {
+  visibility: visible;
+  opacity: 0.25;
+  pointer-events: none;
 }
 
 .favorite-thumbnail-cell {
