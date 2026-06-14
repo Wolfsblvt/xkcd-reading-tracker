@@ -10,7 +10,7 @@ test('manifest is valid JSON with minimal permissions and existing icons', () =>
   const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
 
   assert.equal(manifest.manifest_version, 3);
-  assert.deepEqual(manifest.permissions.toSorted(), ['alarms', 'storage']);
+  assert.deepEqual(manifest.permissions.toSorted(), ['activeTab', 'alarms', 'storage']);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
   assert.equal(manifest.background.type, 'module');
   assert.equal(manifest.content_scripts.length, 1);
