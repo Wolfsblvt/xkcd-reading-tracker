@@ -12,7 +12,7 @@ The extension augments xkcd rather than replacing it. The xkcd page remains the 
 - `src/popup` owns the compact toolbar UI.
 - `src/dashboard` owns the full management/options page.
 - `src/background/service-worker.js` owns installation setup, latest-comic checks, badge state, and per-tab browse-mode storage.
-- `src/shared` contains pure domain logic for validity rules, state normalization, progress, progress formatting, rating-control descriptors, ranges, navigation, favorites-library filtering, settings, and backup validation.
+- `src/shared` contains pure domain logic for validity rules, state normalization, progress, progress formatting, rating-control descriptors, onboarding planning, ranges, navigation, favorites-library filtering, settings, and backup validation.
 - `src/storage` is the persistence boundary around Chrome storage and xkcd metadata caching.
 - `tests` covers the pure domain logic, backup validation, migration bootstrap, and manifest smoke checks with Node's built-in test runner.
 
@@ -27,6 +27,7 @@ User-created data is synchronized with `chrome.storage.sync`:
 - settings
 - schema metadata
 - latest-comic acknowledgement state
+- onboarding completion timestamp
 - extension-page appearance preference
 
 Public xkcd metadata is cached in `chrome.storage.local` because it is rebuildable and should not consume sync quota. The cache stores metadata fetched from xkcd `info.0.json` endpoints only when needed, including title and image URL data used by the favorites library.
@@ -41,7 +42,7 @@ The extension deliberately avoids browser `localStorage`; Chrome documents that 
 
 The synchronized keyspace uses the `xrt:` prefix:
 
-- `xrt:meta` stores schema version, timestamps, latest known comic, latest check time, new-comic acknowledgement, and continue point.
+- `xrt:meta` stores schema version, timestamps, latest known comic, latest check time, new-comic acknowledgement, continue point, and onboarding completion time.
 - `xrt:settings` stores synchronized settings.
 - `xrt:chunk:<index>` stores sparse comic state for a bounded comic ID range.
 
@@ -124,11 +125,11 @@ The current mode is per tab/session, with synchronized settings only providing t
 
 ## Popup And Dashboard
 
-The popup reads storage directly through the shared storage service and asks the active tab's content script for current-comic context when available. It remains compact and avoids full catalog management. Its current-comic controls use the same shared rating descriptors as the xkcd page, the unread preview only shows range links, and the new-comic block also exposes the latest known xkcd number.
+The popup reads storage directly through the shared storage service and asks the active tab's content script for current-comic context when available. It remains compact, follows xkcd's native small-caps/link/button styling, and avoids full catalog management. Its current-comic controls use the same shared rating descriptors as the xkcd page, comic links show cached titles when available, the unread preview only shows range links, and the new-comic block also exposes the latest known xkcd number. If onboarding has not been completed, the popup shows a setup nudge with simple one-click paths and a link to the full dashboard setup flow.
 
-The dashboard is the full management surface. It includes overview, a searchable favorites library, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. The favorites library can search cached titles or comic numbers, filter rated/unrated favorites, sort by rating/number/title, page through results, show lazy remote thumbnails from xkcd image URLs, edit ratings inline, toggle read state, remove favorites, open a random visible favorite, and request missing xkcd metadata. Settings autosave on change, avoid self-triggered full-page refreshes, and are grouped vertically by category. Navigation settings separate filtered-navigation behavior from optional read/favorite button injection. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
+The dashboard is the full management surface. It includes onboarding, overview, a searchable favorites library, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. The onboarding flow can start from the beginning, mark comics read through a chosen number, or mark the user caught up; bulk actions require confirmation and then store `onboardingCompletedAt`. The favorites library can search cached titles or comic numbers, filter rated/unrated favorites, sort by rating/number/title, page through results, show lazy remote thumbnails from xkcd image URLs, edit ratings inline, toggle read state, remove favorites, open a random visible favorite, and request missing xkcd metadata. Settings autosave on change, avoid self-triggered full-page refreshes, and are grouped vertically by category. Navigation settings separate filtered-navigation behavior from optional read/favorite button injection. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
 
-The popup and dashboard support light, dark, and system appearance. The content-script UI does not use that setting because it should visually follow the xkcd page it is augmenting.
+The dashboard supports light, dark, and system appearance. The popup and content-script UI do not use that setting because they should visually follow the xkcd page.
 
 ## Latest Comic Checks And Badge
 
@@ -181,6 +182,7 @@ Automated tests cover logic that is cheap and valuable to verify outside Chrome:
 - filtered navigation,
 - continue-point advancement,
 - bulk range parsing,
+- onboarding planning,
 - backup validation,
 - migration bootstrap,
 - manifest smoke checks.

@@ -10,6 +10,7 @@ test('backup round-trip preserves compact comic state', () => {
   const meta = createDefaultMeta({ now: new Date('2026-01-01T00:00:00.000Z') });
   meta.latestKnownComicId = 10;
   meta.continuePoint = 6;
+  meta.onboardingCompletedAt = '2026-01-01T12:00:00.000Z';
   const settings = createDefaultSettings();
   settings.ratingDisplay = 'ten-point';
 
@@ -30,6 +31,7 @@ test('backup round-trip preserves compact comic state', () => {
   assert.equal(backup.format, BACKUP_FORMAT);
   assert.equal(backup.backupVersion, BACKUP_VERSION);
   assert.equal(backup.schemaVersion, SCHEMA_VERSION);
+  assert.equal(backup.meta.onboardingCompletedAt, '2026-01-01T12:00:00.000Z');
   assert.deepEqual(backup.comics, {
     1: { r: 1 },
     2: { f: 1, rating: 7 },
@@ -37,6 +39,7 @@ test('backup round-trip preserves compact comic state', () => {
 
   const validated = validateBackup(backup);
   assert.equal(validated.ok, true);
+  assert.equal(validated.data.meta.onboardingCompletedAt, '2026-01-01T12:00:00.000Z');
   assert.deepEqual(validated.data.comics, {
     1: { r: 1 },
     2: { f: 1, rating: 7 },

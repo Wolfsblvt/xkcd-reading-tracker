@@ -18,6 +18,7 @@ export function normalizeMeta(raw) {
     lastNewComicId: coerceComicId(value.lastNewComicId),
     acknowledgedLatestComicId: coerceComicId(value.acknowledgedLatestComicId),
     continuePoint: coerceComicId(value.continuePoint),
+    onboardingCompletedAt: typeof value.onboardingCompletedAt === 'string' ? value.onboardingCompletedAt : null,
   };
 }
 
@@ -69,4 +70,3 @@ export function migrateSyncItems(items) {
 
   return { updates, changed };
 }
-

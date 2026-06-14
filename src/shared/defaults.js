@@ -65,6 +65,7 @@ export function createDefaultMeta({ now = new Date() } = {}) {
     lastNewComicId: null,
     acknowledgedLatestComicId: null,
     continuePoint: null,
+    onboardingCompletedAt: null,
   };
 }
 

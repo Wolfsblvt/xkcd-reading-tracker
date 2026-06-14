@@ -13,6 +13,7 @@ import {
   sortFavoriteRows,
 } from '../shared/favorites-library.js';
 import { getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
+import { createOnboardingPlan, ONBOARDING_MODES, shouldSuggestOnboarding } from '../shared/onboarding.js';
 import { formatProgressSummary } from '../shared/progress-format.js';
 import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
 import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
@@ -255,6 +256,100 @@ function renderOverview() {
   }
 
   return section;
+}
+
+function renderOnboarding() {
+  const section = element('section', { className: 'onboarding-callout', attrs: { id: 'onboarding' } });
+  section.append(element('h2', { text: 'Setup' }));
+
+  if (!snapshot.meta.latestKnownComicId) {
+    section.append(element('p', { text: 'Fetch the latest xkcd number first, then choose where your backlog starts.' }));
+    section.append(element('div', {
+      className: 'row',
+      children: [
+        button('Check for latest comic', async () => {
+          await chrome.runtime.sendMessage({ type: 'xrt:check-latest-comic' });
+          await refresh();
+          showMessage('Latest-comic check completed.');
+        }),
+        button('Skip setup', skipOnboarding, {
+          title: 'Hide setup without changing read state',
+        }),
+      ],
+    }));
+    return section;
+  }
+
+  const readThroughInput = /** @type {HTMLInputElement} */ (element('input', {
+    attrs: {
+      type: 'number',
+      min: '1',
+      max: String(snapshot.meta.latestKnownComicId),
+      placeholder: `Read through #${snapshot.meta.latestKnownComicId}`,
+      'aria-label': 'Last xkcd comic you have already read',
+    },
+  }));
+
+  section.append(element('p', {
+    text: 'Choose your starting point once. This can bulk-mark old comics read and set the first comic you want to continue with.',
+  }));
+  section.append(element('div', {
+    className: 'row onboarding-actions',
+    children: [
+      button('Start at #1', () => applyOnboarding(ONBOARDING_MODES.BEGINNING), {
+        title: 'Keep every comic unread and set the continue point to the first available comic',
+      }),
+      readThroughInput,
+      button('Apply read-through', () => applyOnboarding(ONBOARDING_MODES.READ_THROUGH, Number(readThroughInput.value)), {
+        title: 'Mark comics up to the entered number read and continue after that',
+      }),
+      button('Caught up', () => applyOnboarding(ONBOARDING_MODES.CAUGHT_UP), {
+        title: 'Mark every known xkcd comic read',
+      }),
+      button('Skip setup', skipOnboarding, {
+        title: 'Hide setup without changing read state',
+      }),
+    ],
+  }));
+
+  return section;
+}
+
+/**
+ * @param {string} mode
+ * @param {number | null} [targetComicId]
+ */
+async function applyOnboarding(mode, targetComicId = null) {
+  const result = createOnboardingPlan({
+    mode,
+    targetComicId,
+    latestComicId: snapshot.meta.latestKnownComicId,
+  });
+  if (!result.ok) {
+    showMessage(result.error, true);
+    return;
+  }
+
+  if (!window.confirm(result.plan.confirmText)) {
+    return;
+  }
+
+  snapshot = await storageService.applyOnboardingPlan(result.plan);
+  await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
+  await refresh();
+  showMessage(result.plan.summary);
+}
+
+async function skipOnboarding() {
+  snapshot = await storageService.completeOnboarding();
+  await refresh();
+  showMessage('Setup skipped.');
+}
+
+async function restartOnboarding() {
+  snapshot = await storageService.restartOnboarding();
+  await refresh();
+  showMessage('Setup can be run again.');
 }
 
 function renderFavorites() {
@@ -898,7 +993,7 @@ function renderSettings() {
         })),
       ]),
       settingGroup('Appearance', [
-        settingItem('Extension pages', 'Applies to the popup and dashboard. xkcd page controls inherit the site styling.', theme),
+        settingItem('Dashboard theme', 'Applies to this dashboard. The popup follows xkcd styling, and comic-page controls inherit xkcd.', theme),
       ]),
     ],
   }));
@@ -941,6 +1036,26 @@ function renderDataTools() {
   section.append(element('h3', { text: 'Reset' }));
   section.append(element('p', { className: 'muted', text: 'Reset removes read state, favorites, ratings, settings, continue point, metadata cache, and badge state.' }));
   section.append(resetRow);
+
+  section.append(element('h3', { text: 'Onboarding' }));
+  section.append(element('p', {
+    className: 'muted',
+    text: snapshot.meta.onboardingCompletedAt
+      ? `Setup completed at ${snapshot.meta.onboardingCompletedAt}.`
+      : 'Setup is currently visible until completed or skipped.',
+  }));
+  section.append(element('div', {
+    className: 'row',
+    children: [
+      snapshot.meta.onboardingCompletedAt
+        ? button('Restart setup', restartOnboarding, {
+          title: 'Show the setup suggestions again',
+        })
+        : button('Mark setup complete', skipOnboarding, {
+          title: 'Hide setup without changing read state',
+        }),
+    ],
+  }));
   return section;
 }
 
@@ -1017,14 +1132,16 @@ function renderDiagnostics() {
 }
 
 function render() {
-  app.replaceChildren(
+  const sections = [
+    ...(shouldSuggestOnboarding(snapshot.meta) ? [renderOnboarding()] : []),
     renderOverview(),
     renderFavorites(),
     renderUnread(),
     renderSettings(),
     renderDataTools(),
-    renderDiagnostics()
-  );
+    renderDiagnostics(),
+  ];
+  app.replaceChildren(...sections);
 }
 
 /**

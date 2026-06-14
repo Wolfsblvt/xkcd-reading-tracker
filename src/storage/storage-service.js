@@ -284,6 +284,53 @@ export async function updateMeta(patch) {
 }
 
 /**
+ * @param {import('../shared/onboarding.js').OnboardingPlan} plan
+ * @returns {Promise<import('../shared/types.js').TrackerSnapshot>}
+ */
+export async function applyOnboardingPlan(plan) {
+  if (!plan || !Array.isArray(plan.readIds)) {
+    throw new Error('Invalid onboarding plan.');
+  }
+
+  if (plan.readIds.length > 0) {
+    await updateManyComicStates(plan.readIds, { read: true });
+  }
+
+  const snapshot = await getTrackerSnapshot();
+  const acknowledgedLatestComicId = coerceComicId(plan.acknowledgedLatestComicId);
+  const patch = /** @type {Partial<import('../shared/types.js').TrackerMeta>} */ ({
+    continuePoint: plan.continuePoint,
+    onboardingCompletedAt: nowIso(),
+  });
+
+  if (acknowledgedLatestComicId !== null) {
+    patch.acknowledgedLatestComicId = Math.max(snapshot.meta.acknowledgedLatestComicId ?? 0, acknowledgedLatestComicId);
+    if (snapshot.meta.lastNewComicId && acknowledgedLatestComicId >= snapshot.meta.lastNewComicId) {
+      patch.lastNewComicId = null;
+    }
+  }
+
+  await updateMeta(patch);
+  return getTrackerSnapshot();
+}
+
+/**
+ * @returns {Promise<import('../shared/types.js').TrackerSnapshot>}
+ */
+export async function completeOnboarding() {
+  await updateMeta({ onboardingCompletedAt: nowIso() });
+  return getTrackerSnapshot();
+}
+
+/**
+ * @returns {Promise<import('../shared/types.js').TrackerSnapshot>}
+ */
+export async function restartOnboarding() {
+  await updateMeta({ onboardingCompletedAt: null });
+  return getTrackerSnapshot();
+}
+
+/**
  * @param {import('../shared/types.js').TrackerSettings} settings
  * @returns {Promise<import('../shared/types.js').TrackerSettings>}
  */
@@ -414,6 +461,9 @@ export const storageService = Object.freeze({
   setContinuePoint,
   acknowledgeLatestComic,
   updateMeta,
+  applyOnboardingPlan,
+  completeOnboarding,
+  restartOnboarding,
   saveSettings,
   exportBackup,
   importBackupReplacingData,

@@ -170,7 +170,7 @@ td {
   border-bottom: 1px solid var(--xrt-soft-border);
   padding: 6px;
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 th {
@@ -192,6 +192,21 @@ th {
 
 .field > span {
   font-weight: 600;
+}
+
+.onboarding-callout {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1.5px solid var(--xrt-border);
+  background: var(--xrt-panel);
+}
+
+.onboarding-callout p {
+  margin-top: 6px;
+}
+
+.onboarding-actions input[type="number"] {
+  width: 150px;
 }
 
 .favorite-library-controls {
@@ -328,14 +343,12 @@ button.xrt-rating-clear:disabled {
   aspect-ratio: 16 / 9;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--xrt-soft-border);
-  background: var(--xrt-panel);
 }
 
 .favorite-thumbnail {
   display: block;
-  max-width: calc(100% - 12px);
-  max-height: calc(100% - 12px);
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 

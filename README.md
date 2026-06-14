@@ -53,7 +53,8 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Export and import complete JSON backups of user-created state.
 - Reset data with an optional backup-first flow.
 - Check for newly published comics and show a toolbar badge.
-- Use light, dark, or system appearance for extension pages.
+- Run a first-time setup flow to mark older comics read and set a sensible continue point.
+- Use light, dark, or system appearance for the dashboard.
 
 ## Local Installation
 
@@ -67,9 +68,9 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 
 On xkcd comic pages, use the injected tracker panel below the comic to mark read state, favorite, rate, set the continue point, change browse mode, open Explain xkcd, and view progress.
 
-Use the toolbar popup for quick progress, current-tab controls, rating, new-comic status, latest-comic access, unread preview, and compact bulk marking.
+Use the xkcd-styled toolbar popup for quick progress, setup nudges, current-tab controls, rating, new-comic status, latest-comic access, unread preview, and compact bulk marking.
 
-Use the dashboard/options page for settings, searchable favorite comics with lazy thumbnails and inline actions, unread ranges, import/export, reset, and diagnostics.
+Use the dashboard/options page for first-time setup, settings, searchable favorite comics with lazy thumbnails and inline actions, unread ranges, import/export, reset, and diagnostics.
 
 ## Development
 

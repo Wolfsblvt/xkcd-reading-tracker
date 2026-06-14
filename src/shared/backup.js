@@ -18,6 +18,7 @@ export function createBackup({ snapshot, extensionVersion, now = new Date() }) {
       acknowledgedLatestComicId: snapshot.meta.acknowledgedLatestComicId,
       lastNewComicId: snapshot.meta.lastNewComicId,
       continuePoint: snapshot.meta.continuePoint,
+      onboardingCompletedAt: snapshot.meta.onboardingCompletedAt,
     },
     settings: normalizeSettings(snapshot.settings),
     comics: normalizeComicStateMap(snapshot.comics, snapshot.meta.latestKnownComicId),
@@ -52,11 +53,13 @@ export function validateBackup(value) {
   const acknowledgedLatestComicId = coerceComicId(rawMeta.acknowledgedLatestComicId);
   const lastNewComicId = coerceComicId(rawMeta.lastNewComicId);
   const continuePoint = coerceComicId(rawMeta.continuePoint);
+  const onboardingCompletedAt = typeof rawMeta.onboardingCompletedAt === 'string' ? rawMeta.onboardingCompletedAt : null;
   const meta = createDefaultMeta();
   meta.latestKnownComicId = latestKnownComicId;
   meta.acknowledgedLatestComicId = acknowledgedLatestComicId;
   meta.lastNewComicId = lastNewComicId;
   meta.continuePoint = continuePoint;
+  meta.onboardingCompletedAt = onboardingCompletedAt;
 
   const settings = normalizeSettings(raw.settings);
   const comics = normalizeComicStateMap(raw.comics, latestKnownComicId);
@@ -74,4 +77,3 @@ export function validateBackup(value) {
     },
   };
 }
-

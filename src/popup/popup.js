@@ -1,14 +1,17 @@
 import { RATING_DISPLAY_MODES } from '../shared/constants.js';
 import { calculateProgress, getComicState, getUnreadComicIds, isValidComicId } from '../shared/comic-state.js';
 import { getComicUrl } from '../shared/navigation.js';
+import { createOnboardingPlan, ONBOARDING_MODES, shouldSuggestOnboarding } from '../shared/onboarding.js';
 import { formatProgressSummary } from '../shared/progress-format.js';
 import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
 import { getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
 import { storageService } from '../storage/storage-service.js';
+import { metadataCache } from '../storage/metadata-cache.js';
 
 const app = document.getElementById('app');
 let snapshot = null;
 let activeComic = null;
+let popupMetadataById = {};
 
 /**
  * @param {string} tagName
@@ -127,6 +130,45 @@ async function getActiveComic() {
   return id ? { id, title: null } : null;
 }
 
+/**
+ * @param {number | null | undefined} comicId
+ * @returns {string | null}
+ */
+function getCachedComicTitle(comicId) {
+  if (!comicId) {
+    return null;
+  }
+
+  const metadata = popupMetadataById[String(comicId)];
+  return metadata?.safeTitle ?? metadata?.title ?? null;
+}
+
+/**
+ * @param {number} comicId
+ * @param {string | null | undefined} title
+ * @returns {string}
+ */
+function formatComicLabel(comicId, title) {
+  return `#${comicId}${title ? `: ${title}` : ''}`;
+}
+
+/**
+ * @param {number} comicId
+ * @param {string | null | undefined} title
+ * @returns {HTMLAnchorElement}
+ */
+function comicLink(comicId, title) {
+  return /** @type {HTMLAnchorElement} */ (element('a', {
+    text: formatComicLabel(comicId, title),
+    attrs: {
+      href: getComicUrl(comicId),
+      target: '_blank',
+      rel: 'noreferrer',
+      title: title ? `Open xkcd #${comicId}: ${title}` : `Open xkcd comic #${comicId}`,
+    },
+  }));
+}
+
 function renderProgressSection() {
   const progress = calculateProgress(snapshot.comics, snapshot.meta.latestKnownComicId);
   const section = element('section', { children: [element('h1', { text: 'xkcd Tracker' })] });
@@ -140,6 +182,78 @@ function renderProgressSection() {
   return section;
 }
 
+function renderOnboardingNudge() {
+  const section = element('section', { className: 'section onboarding-nudge', children: [element('h2', { text: 'Setup' })] });
+  section.append(element('p', { text: 'Choose where tracking starts so progress and continue links make sense.' }));
+
+  const actions = [
+    button('Open setup', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#onboarding')), {
+      title: 'Open the full setup flow in the dashboard',
+    }),
+  ];
+
+  if (snapshot.meta.latestKnownComicId) {
+    actions.push(
+      button('Start #1', () => applyOnboarding(ONBOARDING_MODES.BEGINNING), {
+        title: 'Set the continue point to the first available comic',
+      })
+    );
+
+    if (activeComic && isValidComicId(activeComic.id, snapshot.meta.latestKnownComicId)) {
+      actions.push(button('Use current', () => applyOnboarding(ONBOARDING_MODES.CURRENT, activeComic.id), {
+        title: `Mark previous comics read and continue at #${activeComic.id}`,
+      }));
+    }
+
+    actions.push(button('Caught up', () => applyOnboarding(ONBOARDING_MODES.CAUGHT_UP), {
+      title: 'Mark every known xkcd comic read',
+    }));
+  } else {
+    actions.push(button('Check now', async () => {
+      await chrome.runtime.sendMessage({ type: 'xrt:check-latest-comic' });
+      await refresh();
+    }, { title: 'Check xkcd for the latest comic number' }));
+  }
+
+  actions.push(button('Skip', skipOnboarding, {
+    title: 'Hide setup without changing read state',
+  }));
+
+  section.append(element('div', { className: 'row', children: actions }));
+  return section;
+}
+
+/**
+ * @param {string} mode
+ * @param {number | null} [targetComicId]
+ */
+async function applyOnboarding(mode, targetComicId = null) {
+  const result = createOnboardingPlan({
+    mode,
+    targetComicId,
+    latestComicId: snapshot.meta.latestKnownComicId,
+  });
+  if (!result.ok) {
+    showMessage(result.error, true);
+    return;
+  }
+
+  if (!window.confirm(result.plan.confirmText)) {
+    return;
+  }
+
+  snapshot = await storageService.applyOnboardingPlan(result.plan);
+  await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
+  await refresh();
+  showMessage(result.plan.summary);
+}
+
+async function skipOnboarding() {
+  snapshot = await storageService.completeOnboarding();
+  await refresh();
+  showMessage('Setup skipped.');
+}
+
 function renderContinueSection() {
   const section = element('section', { className: 'section', children: [element('h2', { text: 'Continue' })] });
   if (!snapshot.meta.continuePoint) {
@@ -147,12 +261,11 @@ function renderContinueSection() {
     return section;
   }
 
-  section.append(element('p', { text: `Next backlog comic: #${snapshot.meta.continuePoint}` }));
-  section.append(element('div', {
-    className: 'row',
-    children: [button('Open', () => openTab(getComicUrl(snapshot.meta.continuePoint)), {
-      title: `Open continue point #${snapshot.meta.continuePoint}`,
-    })],
+  section.append(element('p', {
+    children: [
+      document.createTextNode('Next backlog comic: '),
+      comicLink(snapshot.meta.continuePoint, getCachedComicTitle(snapshot.meta.continuePoint)),
+    ],
   }));
   return section;
 }
@@ -166,13 +279,15 @@ function renderNewComicSection() {
   if (!lastNew || lastNew <= acknowledged) {
     section.append(element('p', { className: 'muted', text: 'No newly published comic is waiting.' }));
   } else {
-    section.append(element('p', { text: `xkcd #${lastNew} is new.` }));
+    section.append(element('p', {
+      children: [
+        document.createTextNode('New: '),
+        comicLink(lastNew, getCachedComicTitle(lastNew)),
+      ],
+    }));
     section.append(element('div', {
       className: 'row',
       children: [
-        button('Open', () => openTab(getComicUrl(lastNew)), {
-          title: `Open new xkcd comic #${lastNew}`,
-        }),
         button('Acknowledge', async () => {
           await storageService.acknowledgeLatestComic(lastNew);
           await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
@@ -187,15 +302,7 @@ function renderNewComicSection() {
       className: 'latest-comic-link',
       children: [
         document.createTextNode('Latest known comic: '),
-        element('a', {
-          text: `#${latestKnown}`,
-          attrs: {
-            href: getComicUrl(latestKnown),
-            target: '_blank',
-            rel: 'noreferrer',
-            title: `Open latest known xkcd comic #${latestKnown}`,
-          },
-        }),
+        comicLink(latestKnown, getCachedComicTitle(latestKnown)),
       ],
     }));
   }
@@ -213,7 +320,9 @@ function renderActiveComicSection() {
   const state = getComicState(snapshot.comics, activeComic.id);
   const isContinuePoint = snapshot.meta.continuePoint === activeComic.id;
   const canSetContinuePoint = !state.read && !isContinuePoint;
-  section.append(element('p', { text: `#${activeComic.id}${activeComic.title ? `: ${activeComic.title}` : ''}` }));
+  section.append(element('p', {
+    children: [comicLink(activeComic.id, activeComic.title ?? getCachedComicTitle(activeComic.id))],
+  }));
   const row = element('div', { className: 'row' });
   row.append(
     button('Read', async () => {
@@ -413,20 +522,29 @@ function renderLinks() {
 }
 
 function render() {
-  app.replaceChildren(
+  const sections = [
     renderProgressSection(),
+    ...(shouldSuggestOnboarding(snapshot.meta) ? [renderOnboardingNudge()] : []),
     renderContinueSection(),
     renderNewComicSection(),
     renderActiveComicSection(),
     renderUnreadPreview(),
-    renderLinks()
-  );
+    renderLinks(),
+  ];
+  app.replaceChildren(...sections);
 }
 
 async function refresh() {
   snapshot = await storageService.getTrackerSnapshot();
   applyTheme(snapshot.settings.appearance.theme);
   activeComic = await getActiveComic();
+  const metadataIds = [
+    snapshot.meta.continuePoint,
+    snapshot.meta.latestKnownComicId,
+    snapshot.meta.lastNewComicId,
+    activeComic?.id,
+  ].filter((id) => Number.isInteger(id));
+  popupMetadataById = await metadataCache.getCachedMetadataForComics(/** @type {number[]} */ (metadataIds));
   render();
 }
 

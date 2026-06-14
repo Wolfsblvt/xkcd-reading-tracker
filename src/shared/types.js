@@ -47,6 +47,7 @@
  * @property {number | null} lastNewComicId
  * @property {number | null} acknowledgedLatestComicId
  * @property {number | null} continuePoint
+ * @property {string | null} onboardingCompletedAt
  */
 
 /**
