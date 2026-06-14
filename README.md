@@ -53,6 +53,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Export and import complete JSON backups of user-created state.
 - Reset data with an optional backup-first flow.
 - Check for newly published comics and show a toolbar badge.
+- Mute the toolbar icon outside detected xkcd comic pages.
 - Run a first-time setup flow to mark older comics read and set a sensible continue point.
 - Use light, dark, or system appearance for the dashboard.
 

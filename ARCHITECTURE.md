@@ -137,6 +137,8 @@ The background service worker uses `chrome.alarms` to check xkcd's latest `info.
 
 After a genuinely newer comic is discovered, `xrt:meta.lastNewComicId` is set. The toolbar badge shows `NEW` when that value is greater than `acknowledgedLatestComicId` and the badge setting is enabled.
 
+The toolbar action icon defaults to a muted generated icon. When the content script detects a real xkcd comic page, it sends the comic ID to the service worker, which sets the normal icon for that tab only. Navigation resets the tab back to the muted icon until another comic is detected. This keeps the `NEW` badge reserved for new-comic state instead of mixing page-detection status into badge text.
+
 Opening the new comic, marking it read, or explicitly acknowledging it clears the new-comic state. Opening the popup alone does not acknowledge it.
 
 ## Import, Export, And Reset

@@ -5,6 +5,21 @@ import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
 
 const FAVORITE_METADATA_BATCH_SIZE = 50;
+const DEFAULT_ACTION_TITLE = 'xkcd Reading Tracker';
+const ACTION_ICONS = Object.freeze({
+  muted: Object.freeze({
+    16: 'assets/icons/icon-muted16.png',
+    32: 'assets/icons/icon-muted32.png',
+    48: 'assets/icons/icon-muted48.png',
+    128: 'assets/icons/icon-muted128.png',
+  }),
+  active: Object.freeze({
+    16: 'assets/icons/icon16.png',
+    32: 'assets/icons/icon32.png',
+    48: 'assets/icons/icon48.png',
+    128: 'assets/icons/icon128.png',
+  }),
+});
 let favoriteMetadataRefreshPromise = null;
 
 /**
@@ -49,14 +64,36 @@ async function updateBadge() {
   const acknowledged = snapshot.meta.acknowledgedLatestComicId ?? 0;
   const lastNewComicId = snapshot.meta.lastNewComicId ?? 0;
   const showBadge = snapshot.settings.badge.enabled && lastNewComicId > acknowledged;
+  const title = showBadge ? `New xkcd comic #${lastNewComicId} is available` : DEFAULT_ACTION_TITLE;
 
   await chrome.action.setBadgeText({ text: showBadge ? 'NEW' : '' });
   if (showBadge) {
     await chrome.action.setBadgeBackgroundColor({ color: '#6E7B9D' });
-    await chrome.action.setTitle({ title: `New xkcd comic #${lastNewComicId} is available` });
-  } else {
-    await chrome.action.setTitle({ title: 'xkcd Reading Tracker' });
   }
+  await chrome.action.setTitle({ title });
+}
+
+/**
+ * @param {number} tabId
+ * @returns {Promise<void>}
+ */
+async function setMutedActionForTab(tabId) {
+  await Promise.all([
+    chrome.action.setIcon({ tabId, path: ACTION_ICONS.muted }),
+    chrome.action.setTitle({ tabId, title: DEFAULT_ACTION_TITLE }),
+  ]);
+}
+
+/**
+ * @param {number} tabId
+ * @param {number} comicId
+ * @returns {Promise<void>}
+ */
+async function setComicActionForTab(tabId, comicId) {
+  await Promise.all([
+    chrome.action.setIcon({ tabId, path: ACTION_ICONS.active }),
+    chrome.action.setTitle({ tabId, title: `${DEFAULT_ACTION_TITLE} - xkcd comic #${comicId} detected` }),
+  ]);
 }
 
 /**
@@ -214,6 +251,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'xrt:comic-page-detected') {
+    const tabId = sender.tab?.id;
+    const comicId = coerceComicId(message.comicId);
+    if (tabId == null || comicId == null) {
+      sendResponse({ ok: false });
+      return false;
+    }
+
+    setComicActionForTab(tabId, comicId)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => {
+        logNonFatal(error);
+        sendResponse({ ok: false });
+      });
+    return true;
+  }
+
   if (message?.type === 'xrt:check-latest-comic') {
     checkLatestComic()
       .then(() => sendResponse({ ok: true }))
@@ -277,6 +331,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (changedKeys.some(isChunkKey)) {
       queueFavoriteMetadataRefresh().catch(logNonFatal);
     }
+  }
+});
+
+chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'loading' || changeInfo.url) {
+    setMutedActionForTab(tabId).catch(logNonFatal);
   }
 });
 

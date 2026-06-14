@@ -963,6 +963,7 @@ export async function initXkcdTracker() {
   if (!currentComic) {
     return;
   }
+  sendRuntimeMessage({ type: 'xrt:comic-page-detected', comicId: currentComic.id }).catch(logNonFatal);
   altRevealed = false;
   altRevealAnimationPending = false;
   autoReadTimerArmed = false;

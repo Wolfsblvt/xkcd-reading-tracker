@@ -20,4 +20,8 @@ test('manifest is valid JSON with minimal permissions and existing icons', () =>
   for (const path of Object.values(manifest.icons)) {
     assert.equal(existsSync(join(root, path)), true, `${path} should exist`);
   }
+
+  for (const path of Object.values(manifest.action.default_icon)) {
+    assert.equal(existsSync(join(root, path)), true, `${path} should exist`);
+  }
 });

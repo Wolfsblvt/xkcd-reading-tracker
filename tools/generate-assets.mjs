@@ -10,10 +10,14 @@ const promoOutputDir = join(root, 'assets', 'store', 'promo');
 
 const GENERATED_ASSETS = Object.freeze({
   icons: Object.freeze([
-    { size: 16, output: join(iconOutputDir, 'icon16.png') },
-    { size: 32, output: join(iconOutputDir, 'icon32.png') },
-    { size: 48, output: join(iconOutputDir, 'icon48.png') },
-    { size: 128, output: join(iconOutputDir, 'icon128.png') },
+    { size: 16, output: join(iconOutputDir, 'icon16.png'), muted: false },
+    { size: 32, output: join(iconOutputDir, 'icon32.png'), muted: false },
+    { size: 48, output: join(iconOutputDir, 'icon48.png'), muted: false },
+    { size: 128, output: join(iconOutputDir, 'icon128.png'), muted: false },
+    { size: 16, output: join(iconOutputDir, 'icon-muted16.png'), muted: true },
+    { size: 32, output: join(iconOutputDir, 'icon-muted32.png'), muted: true },
+    { size: 48, output: join(iconOutputDir, 'icon-muted48.png'), muted: true },
+    { size: 128, output: join(iconOutputDir, 'icon-muted128.png'), muted: true },
   ]),
   promos: Object.freeze([
     {
@@ -384,6 +388,33 @@ function resizeImage(image, targetWidth, targetHeight) {
 }
 
 /**
+ * @param {{ width: number, height: number, pixels: Uint8ClampedArray }} image
+ * @returns {{ width: number, height: number, pixels: Uint8ClampedArray }}
+ */
+function muteIcon(image) {
+  const pixels = new Uint8ClampedArray(image.pixels);
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    const alpha = pixels[offset + 3];
+    if (alpha === 0) {
+      continue;
+    }
+
+    const luminance = Math.round(
+      pixels[offset] * 0.299
+      + pixels[offset + 1] * 0.587
+      + pixels[offset + 2] * 0.114
+    );
+    const muted = Math.round(luminance * 0.72 + 132 * 0.28);
+    pixels[offset] = muted;
+    pixels[offset + 1] = muted;
+    pixels[offset + 2] = muted;
+    pixels[offset + 3] = Math.round(alpha * 0.58);
+  }
+
+  return { width: image.width, height: image.height, pixels };
+}
+
+/**
  * @param {string} path
  * @returns {{ width: number, height: number }}
  */
@@ -420,7 +451,8 @@ export async function generateAssets({ log = true } = {}) {
 
   for (const icon of GENERATED_ASSETS.icons) {
     const resized = resizeImage(iconSource, icon.size, icon.size);
-    writeFileSync(icon.output, encodePng(resized.width, resized.height, resized.pixels));
+    const output = icon.muted ? muteIcon(resized) : resized;
+    writeFileSync(icon.output, encodePng(output.width, output.height, output.pixels));
     if (log) {
       console.log(`Generated ${prettyPath(icon.output)} (${icon.size}x${icon.size}).`);
     }

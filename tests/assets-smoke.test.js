@@ -22,9 +22,13 @@ function getPngDimensions(path) {
 
 test('generated extension icons have Chrome-required dimensions', () => {
   for (const size of [16, 32, 48, 128]) {
-    const path = `assets/icons/icon${size}.png`;
-    assert.equal(existsSync(join(root, path)), true, `${path} should exist`);
-    assert.deepEqual(getPngDimensions(path), { width: size, height: size });
+    for (const path of [
+      `assets/icons/icon${size}.png`,
+      `assets/icons/icon-muted${size}.png`,
+    ]) {
+      assert.equal(existsSync(join(root, path)), true, `${path} should exist`);
+      assert.deepEqual(getPngDimensions(path), { width: size, height: size });
+    }
   }
 });
 
