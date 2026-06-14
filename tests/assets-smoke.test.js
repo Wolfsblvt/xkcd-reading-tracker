@@ -32,3 +32,15 @@ test('store promo assets have Chrome-required dimensions', () => {
   assert.deepEqual(getPngDimensions('assets/store/promo/small-promo-440x280.png'), { width: 440, height: 280 });
   assert.deepEqual(getPngDimensions('assets/store/promo/marquee-promo-1400x560.png'), { width: 1400, height: 560 });
 });
+
+test('store screenshots have Chrome-required dimensions', () => {
+  for (const path of [
+    'assets/store/screenshots/01-comic-page.png',
+    'assets/store/screenshots/03-dashboard-overview.png',
+    'assets/store/screenshots/04-dashboard-settings.png',
+    'assets/store/screenshots/05-dashboard-diagnostics.png',
+  ]) {
+    assert.equal(existsSync(join(root, path)), true, `${path} should exist`);
+    assert.deepEqual(getPngDimensions(path), { width: 1280, height: 800 });
+  }
+});

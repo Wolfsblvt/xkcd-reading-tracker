@@ -1,5 +1,11 @@
 # xkcd Reading Tracker
 
+[![extension version](https://img.shields.io/badge/dynamic/json?color=blue&label=extension%20version&query=%24.version&url=https%3A%2F%2Fraw.githubusercontent.com%2FWolfsblvt%2Fxkcd-reading-tracker%2Fmain%2Fmanifest.json)](https://github.com/Wolfsblvt/xkcd-reading-tracker)
+[![release](https://img.shields.io/github/v/release/Wolfsblvt/xkcd-reading-tracker?color=lightblue&label=release)](https://github.com/Wolfsblvt/xkcd-reading-tracker/releases/latest)
+[![tests](https://github.com/Wolfsblvt/xkcd-reading-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Wolfsblvt/xkcd-reading-tracker/actions/workflows/tests.yml)
+[![Manifest V3](https://img.shields.io/badge/manifest-v3-4c8eda)](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3)
+[![Chrome 120+](https://img.shields.io/badge/chrome-120%2B-4285f4?logo=googlechrome&logoColor=white)](https://www.google.com/chrome/)
+
 A small Chrome extension for tracking xkcd reading progress directly on xkcd.com.
 
 It adds restrained controls to comic pages, keeps state in Chrome extension storage, and provides a compact popup plus a fuller dashboard for management tasks.
