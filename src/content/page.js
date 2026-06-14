@@ -613,9 +613,16 @@ function renderLinks() {
       title: 'Open the full xkcd Reading Tracker dashboard',
     },
   });
-  link.addEventListener('click', async (event) => {
+
+  const openDashboard = async (event) => {
     event.preventDefault();
     await sendRuntimeMessage({ type: 'xrt:open-dashboard' });
+  };
+  link.addEventListener('click', openDashboard);
+  link.addEventListener('auxclick', async (event) => {
+    if (event.button === 1) {
+      await openDashboard(event);
+    }
   });
   row.append(link);
   return row;
