@@ -10,6 +10,25 @@ A small Chrome extension for tracking xkcd reading progress directly on xkcd.com
 
 It adds restrained controls to comic pages, keeps state in Chrome extension storage, and provides a compact popup plus a fuller dashboard for management tasks.
 
+![xkcd Reading Tracker on a comic page](assets/store/screenshots/01-comic-page.png)
+
+<details>
+<summary>More screenshots</summary>
+
+### Dashboard Overview
+
+![Dashboard overview](assets/store/screenshots/03-dashboard-overview.png)
+
+### Dashboard Settings
+
+![Dashboard settings](assets/store/screenshots/04-dashboard-settings.png)
+
+### Dashboard Diagnostics
+
+![Dashboard diagnostics](assets/store/screenshots/05-dashboard-diagnostics.png)
+
+</details>
+
 ## Features
 
 - Mark individual comics read or unread.
