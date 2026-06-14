@@ -6,18 +6,19 @@ import { metadataCache } from '../storage/metadata-cache.js';
 
 const FAVORITE_METADATA_BATCH_SIZE = 50;
 const DEFAULT_ACTION_TITLE = 'xkcd Reading Tracker';
+// MV3 service-worker setIcon calls are picky about extension-root paths.
 const ACTION_ICONS = Object.freeze({
   muted: Object.freeze({
-    16: 'assets/icons/icon-muted16.png',
-    32: 'assets/icons/icon-muted32.png',
-    48: 'assets/icons/icon-muted48.png',
-    128: 'assets/icons/icon-muted128.png',
+    16: '/assets/icons/icon-muted16.png',
+    32: '/assets/icons/icon-muted32.png',
+    48: '/assets/icons/icon-muted48.png',
+    128: '/assets/icons/icon-muted128.png',
   }),
   active: Object.freeze({
-    16: 'assets/icons/icon16.png',
-    32: 'assets/icons/icon32.png',
-    48: 'assets/icons/icon48.png',
-    128: 'assets/icons/icon128.png',
+    16: '/assets/icons/icon16.png',
+    32: '/assets/icons/icon32.png',
+    48: '/assets/icons/icon48.png',
+    128: '/assets/icons/icon128.png',
   }),
 });
 let favoriteMetadataRefreshPromise = null;
