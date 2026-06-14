@@ -75,59 +75,73 @@ async function updateBadge() {
 
 /**
  * @param {number} tabId
+ * @param {{ global?: boolean }} [options]
  * @returns {Promise<void>}
  */
-async function setMutedActionForTab(tabId) {
-  await Promise.all([
+async function setMutedActionForTab(tabId, options = {}) {
+  const updates = [
     chrome.action.setIcon({ tabId, path: ACTION_ICONS.muted }),
     chrome.action.setTitle({ tabId, title: DEFAULT_ACTION_TITLE }),
-  ]);
+  ];
+  if (options.global) {
+    updates.push(chrome.action.setIcon({ path: ACTION_ICONS.muted }));
+  }
+
+  await Promise.all(updates);
 }
 
 /**
  * @param {number} tabId
  * @param {number} comicId
+ * @param {{ global?: boolean }} [options]
  * @returns {Promise<void>}
  */
-async function setComicActionForTab(tabId, comicId) {
-  await Promise.all([
+async function setComicActionForTab(tabId, comicId, options = {}) {
+  const updates = [
     chrome.action.setIcon({ tabId, path: ACTION_ICONS.active }),
     chrome.action.setTitle({ tabId, title: `${DEFAULT_ACTION_TITLE} - xkcd comic #${comicId} detected` }),
-  ]);
+  ];
+  if (options.global) {
+    updates.push(chrome.action.setIcon({ path: ACTION_ICONS.active }));
+  }
+
+  await Promise.all(updates);
 }
 
 /**
  * @param {number} tabId
  * @param {number} comicId
+ * @param {{ global?: boolean }} [options]
  * @returns {Promise<void>}
  */
-async function setComicActionForTabIfValid(tabId, comicId) {
+async function setComicActionForTabIfValid(tabId, comicId, options = {}) {
   const snapshot = await storageService.getTrackerSnapshot();
   if (isValidComicId(comicId, snapshot.meta.latestKnownComicId)) {
-    await setComicActionForTab(tabId, comicId);
+    await setComicActionForTab(tabId, comicId, options);
     return;
   }
 
-  await setMutedActionForTab(tabId);
+  await setMutedActionForTab(tabId, options);
 }
 
 /**
  * @param {number} tabId
+ * @param {{ global?: boolean }} [options]
  * @returns {Promise<void>}
  */
-async function refreshActionForTab(tabId) {
+async function refreshActionForTab(tabId, options = {}) {
   try {
     const response = await chrome.tabs.sendMessage(tabId, { type: 'xrt:get-current-comic' });
     const comicId = coerceComicId(response?.comicId);
     if (comicId !== null) {
-      await setComicActionForTabIfValid(tabId, comicId);
+      await setComicActionForTabIfValid(tabId, comicId, options);
       return;
     }
   } catch {
     // Most tabs do not have the xkcd content script. Muted is the expected state.
   }
 
-  await setMutedActionForTab(tabId);
+  await setMutedActionForTab(tabId, options);
 }
 
 /**
@@ -293,7 +307,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return false;
     }
 
-    setComicActionForTabIfValid(tabId, comicId)
+    setComicActionForTabIfValid(tabId, comicId, { global: sender.tab?.active === true })
       .then(() => sendResponse({ ok: true }))
       .catch((error) => {
         logNonFatal(error);
@@ -368,16 +382,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
+chrome.tabs?.onUpdated?.addListener((tabId, changeInfo, tab) => {
+  const global = tab?.active === true;
   if (changeInfo.status === 'loading') {
-    setMutedActionForTab(tabId).catch(logNonFatal);
+    setMutedActionForTab(tabId, { global }).catch(logNonFatal);
   } else if (changeInfo.status === 'complete') {
-    refreshActionForTab(tabId).catch(logNonFatal);
+    refreshActionForTab(tabId, { global }).catch(logNonFatal);
   }
 });
 
 chrome.tabs?.onActivated?.addListener(({ tabId }) => {
-  refreshActionForTab(tabId).catch(logNonFatal);
+  refreshActionForTab(tabId, { global: true }).catch(logNonFatal);
 });
 
 chrome.tabs?.onRemoved?.addListener((tabId) => {
