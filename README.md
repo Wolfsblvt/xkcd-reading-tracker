@@ -1,16 +1,19 @@
 # xkcd Reading Tracker
 
-[![extension version](https://img.shields.io/badge/dynamic/json?color=blue&label=extension%20version&query=%24.version&url=https%3A%2F%2Fraw.githubusercontent.com%2FWolfsblvt%2Fxkcd-reading-tracker%2Fmain%2Fmanifest.json)](https://github.com/Wolfsblvt/xkcd-reading-tracker)
-[![Install from Chrome Web Store](https://img.shields.io/badge/install-chrome%20web%20store-4285f4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/xkcd-reading-tracker/daemkaclgpcpeekkhnnkleeajbhnbkmd)
-[![Chrome Web Store Version](https://img.shields.io/chrome-web-store/v/daemkaclgpcpeekkhnnkleeajbhnbkmd?label=chrome%20web%20store)](https://chromewebstore.google.com/detail/xkcd-reading-tracker/daemkaclgpcpeekkhnnkleeajbhnbkmd)
-[![release](https://img.shields.io/github/v/release/Wolfsblvt/xkcd-reading-tracker?color=lightblue&label=release)](https://github.com/Wolfsblvt/xkcd-reading-tracker/releases/latest)
+[![extension version](https://img.shields.io/badge/dynamic/json?color=2f7d32&label=extension%20version&query=%24.version&url=https%3A%2F%2Fraw.githubusercontent.com%2FWolfsblvt%2Fxkcd-reading-tracker%2Fmain%2Fmanifest.json)](https://github.com/Wolfsblvt/xkcd-reading-tracker)
+[![Chrome Web Store Version](https://img.shields.io/chrome-web-store/v/daemkaclgpcpeekkhnnkleeajbhnbkmd?color=4285f4&label=chrome%20web%20store)](https://chromewebstore.google.com/detail/xkcd-reading-tracker/daemkaclgpcpeekkhnnkleeajbhnbkmd)
+[![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/daemkaclgpcpeekkhnnkleeajbhnbkmd?color=34a853&label=users)](https://chromewebstore.google.com/detail/xkcd-reading-tracker/daemkaclgpcpeekkhnnkleeajbhnbkmd)
+[![Chrome Web Store Rating](https://img.shields.io/chrome-web-store/rating/daemkaclgpcpeekkhnnkleeajbhnbkmd?color=f9ab00&label=rating)](https://chromewebstore.google.com/detail/xkcd-reading-tracker/daemkaclgpcpeekkhnnkleeajbhnbkmd)
+[![release](https://img.shields.io/github/v/release/Wolfsblvt/xkcd-reading-tracker?color=6f42c1&label=release)](https://github.com/Wolfsblvt/xkcd-reading-tracker/releases/latest)
 [![tests](https://github.com/Wolfsblvt/xkcd-reading-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Wolfsblvt/xkcd-reading-tracker/actions/workflows/tests.yml)
 [![Manifest V3](https://img.shields.io/badge/manifest-v3-4c8eda)](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3)
-[![Chrome 120+](https://img.shields.io/badge/chrome-120%2B-4285f4?logo=googlechrome&logoColor=white)](https://www.google.com/chrome/)
+[![Chrome 120+](https://img.shields.io/badge/chrome-120%2B-5f6368?logo=googlechrome&logoColor=white)](https://www.google.com/chrome/)
 
 A small Chrome extension for tracking xkcd reading progress directly on xkcd.com.
 
 It adds restrained controls to comic pages, keeps state in Chrome extension storage, and provides a compact popup plus a fuller dashboard for management tasks.
+
+[![Install from Chrome Web Store](https://img.shields.io/badge/Install%20from-Chrome%20Web%20Store-4285f4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/xkcd-reading-tracker/daemkaclgpcpeekkhnnkleeajbhnbkmd)
 
 ![xkcd Reading Tracker on a comic page](assets/store/screenshots/01-comic-page.png)
 
@@ -33,6 +36,10 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 
 ![Dashboard diagnostics](assets/store/screenshots/05-dashboard-diagnostics.png)
 
+### Dark Mode Support
+
+![Dark mode support](assets/store/screenshots/06-dark-mode-support.png)
+
 </details>
 
 ## Features
@@ -53,9 +60,9 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Export and import complete JSON backups of user-created state.
 - Reset data with an optional backup-first flow.
 - Check for newly published comics and show a toolbar badge.
-- Mute the toolbar icon outside detected xkcd comic pages.
+- Mute the toolbar icon outside detected xkcd comic pages and restore the full-color icon on valid comic tabs.
 - Run a first-time setup flow to mark older comics read and set a sensible continue point.
-- Use light, dark, or system appearance for the dashboard.
+- Use light, dark, or system appearance for the dashboard, while popup and comic-page controls follow xkcd/page styling.
 
 ## Local Installation
 
@@ -101,7 +108,7 @@ Source artwork lives in `assets/source/`. Generated runtime icons live in `asset
 
 ## Browser Requirements
 
-Chrome 120 or newer is targeted. The extension uses Manifest V3, module extension pages, a module service worker, `chrome.storage`, `chrome.alarms`, and static content-script injection.
+Chrome 120 or newer is targeted. The extension uses Manifest V3, module extension pages, a module service worker, `chrome.storage`, `chrome.alarms`, `chrome.action`, and static content-script injection.
 
 ## Privacy Policy
 
