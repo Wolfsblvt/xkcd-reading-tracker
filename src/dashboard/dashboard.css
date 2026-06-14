@@ -212,14 +212,16 @@ th {
 }
 
 .favorite-thumbnail-cell {
-  width: 132px;
-  min-width: 132px;
+  width: 210px;
+  min-width: 210px;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .favorite-thumbnail-link {
   display: inline-flex;
-  width: 116px;
-  height: 82px;
+  width: min(190px, 100%);
+  aspect-ratio: 16 / 9;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--xrt-soft-border);
@@ -227,8 +229,9 @@ th {
 }
 
 .favorite-thumbnail {
-  max-width: 108px;
-  max-height: 74px;
+  display: block;
+  max-width: calc(100% - 12px);
+  max-height: calc(100% - 12px);
   object-fit: contain;
 }
 
@@ -343,5 +346,14 @@ progress {
   .favorite-library-actions {
     width: 100%;
     margin-left: 0;
+  }
+
+  .favorite-thumbnail-cell {
+    width: 156px;
+    min-width: 156px;
+  }
+
+  .favorite-thumbnail-link {
+    width: 140px;
   }
 }
