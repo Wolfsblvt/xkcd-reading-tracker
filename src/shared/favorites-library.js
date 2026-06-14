@@ -15,12 +15,16 @@ export const FAVORITE_SORT_MODES = Object.freeze({
   TITLE_DESC: 'title-desc',
 });
 
+export const FAVORITE_PAGE_SIZES = Object.freeze([5, 10, 20, 50]);
+export const DEFAULT_FAVORITE_PAGE_SIZE = 10;
+
 /**
  * @typedef {object} FavoriteLibraryRow
  * @property {number} id
  * @property {number | null} rating
  * @property {string | null} title
  * @property {string | null} safeTitle
+ * @property {string | null} imageUrl
  * @property {boolean} metadataCached
  */
 
@@ -37,9 +41,32 @@ export function buildFavoriteRows({ comics, metadataById, latestComicId }) {
       rating: state.rating,
       title: typeof metadata?.title === 'string' && metadata.title ? metadata.title : null,
       safeTitle: typeof metadata?.safeTitle === 'string' && metadata.safeTitle ? metadata.safeTitle : null,
+      imageUrl: typeof metadata?.img === 'string' && metadata.img ? metadata.img : null,
       metadataCached: Boolean(metadata),
     };
   });
+}
+
+/**
+ * @param {unknown} value
+ * @returns {number}
+ */
+function normalizePageSize(value) {
+  const size = Number(value);
+  return FAVORITE_PAGE_SIZES.includes(size) ? size : DEFAULT_FAVORITE_PAGE_SIZE;
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} totalPages
+ * @returns {number}
+ */
+function normalizePage(value, totalPages) {
+  const page = Number(value);
+  if (!Number.isInteger(page) || page < 1) {
+    return 1;
+  }
+  return Math.min(page, totalPages);
 }
 
 /**
@@ -151,6 +178,29 @@ export function sortFavoriteRows(rows, sortMode = FAVORITE_SORT_MODES.RATING_DES
 
 /**
  * @param {FavoriteLibraryRow[]} rows
+ * @param {{ page?: number, pageSize?: number }} [options]
+ * @returns {{ rows: FavoriteLibraryRow[], currentPage: number, pageSize: number, totalPages: number, totalRows: number, startIndex: number, endIndex: number }}
+ */
+export function paginateFavoriteRows(rows, options = {}) {
+  const pageSize = normalizePageSize(options.pageSize);
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const currentPage = normalizePage(options.page, totalPages);
+  const startIndex = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalRows);
+  return {
+    rows: rows.slice(startIndex === 0 ? 0 : startIndex - 1, endIndex),
+    currentPage,
+    pageSize,
+    totalPages,
+    totalRows,
+    startIndex,
+    endIndex,
+  };
+}
+
+/**
+ * @param {FavoriteLibraryRow[]} rows
  * @param {() => number} [random]
  * @returns {FavoriteLibraryRow | null}
  */
@@ -160,4 +210,24 @@ export function getRandomFavoriteRow(rows, random = Math.random) {
   }
 
   return rows[Math.floor(random() * rows.length)] ?? rows[0] ?? null;
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {{ ratingFilter: string, sortMode: string, pageSize: number }}
+ */
+export function normalizeFavoriteLibraryPreferences(raw) {
+  const value = raw && typeof raw === 'object' ? /** @type {Record<string, unknown>} */ (raw) : {};
+  const ratingFilter = Object.values(FAVORITE_RATING_FILTERS).includes(/** @type {string} */ (value.ratingFilter))
+    ? /** @type {string} */ (value.ratingFilter)
+    : FAVORITE_RATING_FILTERS.ALL;
+  const sortMode = Object.values(FAVORITE_SORT_MODES).includes(/** @type {string} */ (value.sortMode))
+    ? /** @type {string} */ (value.sortMode)
+    : FAVORITE_SORT_MODES.RATING_DESC;
+
+  return {
+    ratingFilter,
+    sortMode,
+    pageSize: normalizePageSize(value.pageSize),
+  };
 }

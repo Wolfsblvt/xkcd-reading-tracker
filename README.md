@@ -48,7 +48,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Show xkcd alt text below the comic or after active-viewing delay.
 - Open the matching Explain xkcd page with a small `Huh?` or `Explain` link.
 - View reading progress and unread ranges.
-- Search, filter, sort, and randomly open favorite comics from the dashboard.
+- Search, filter, sort, page through, preview, and randomly open favorite comics from the dashboard.
 - Jump to unread range starts/ends and set a range as the next reading anchor.
 - Bulk mark comic numbers or ranges.
 - Export and import complete JSON backups of user-created state.
@@ -70,7 +70,7 @@ On xkcd comic pages, use the injected tracker panel below the comic to mark read
 
 Use the toolbar popup for quick progress, current-tab controls, new-comic status, unread preview, and compact bulk marking.
 
-Use the dashboard/options page for settings, searchable favorites, unread ranges, import/export, reset, and diagnostics.
+Use the dashboard/options page for settings, searchable favorite comics with lazy thumbnails, unread ranges, import/export, reset, and diagnostics.
 
 ## Development
 
@@ -104,12 +104,12 @@ Chrome 120 or newer is targeted. The extension uses Manifest V3, module extensio
 
 ## Privacy Policy
 
-Reading state is stored through Chrome extension storage. Chrome may synchronize `chrome.storage.sync` data through the signed-in Google account if browser sync is enabled. The extension does not run a server, does not include analytics or tracking, and does not collect, sell, or share reading state with the developer or third-party services. Public xkcd metadata may be fetched from xkcd.com.
+Reading state is stored through Chrome extension storage. Chrome may synchronize `chrome.storage.sync` data through the signed-in Google account if browser sync is enabled. The extension does not run a server, does not include analytics or tracking, and does not collect, sell, or share reading state with the developer or third-party services. Public xkcd metadata and thumbnail images may be fetched from xkcd domains.
 
 ## Known Limitations
 
 - Browser behavior still needs manual validation after loading or reloading the unpacked extension.
 - The first version is Chrome-focused.
-- Favorite titles are cached only as needed, so title search improves after metadata is fetched.
+- Favorite titles and thumbnail URLs are cached only as needed, so title search and previews improve after metadata is fetched.
 - Import replaces current data; merge import is future work.
 - Chrome sync is managed by Chrome and may not be immediate or cross-browser.

@@ -8,6 +8,7 @@ export const SETTINGS_KEY = `${STORAGE_PREFIX}settings`;
 export const CHUNK_KEY_PREFIX = `${STORAGE_PREFIX}chunk:`;
 export const LOCAL_METADATA_KEY = `${STORAGE_PREFIX}metadata`;
 export const SESSION_TAB_MODE_PREFIX = `${STORAGE_PREFIX}tab-mode:`;
+export const SESSION_FAVORITES_LIBRARY_KEY = `${STORAGE_PREFIX}favorites-library`;
 
 export const CHUNK_SIZE = 250;
 export const UNAVAILABLE_COMIC_IDS = Object.freeze([404]);

@@ -33,6 +33,9 @@
     "48": "assets/icons/icon48.png",
     "128": "assets/icons/icon128.png"
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' https://imgs.xkcd.com data:;"
+  },
   "options_page": "src/dashboard/dashboard.html",
   "content_scripts": [
     {

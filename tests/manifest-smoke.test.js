@@ -13,6 +13,8 @@ test('manifest is valid JSON with minimal permissions and existing icons', () =>
   assert.deepEqual(manifest.permissions.toSorted(), ['alarms', 'storage']);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
   assert.equal(manifest.background.type, 'module');
+  assert.equal(manifest.content_security_policy.extension_pages.includes("script-src 'self'"), true);
+  assert.equal(manifest.content_security_policy.extension_pages.includes('https://imgs.xkcd.com'), true);
   assert.equal(manifest.content_scripts.length, 1);
 
   for (const path of Object.values(manifest.icons)) {

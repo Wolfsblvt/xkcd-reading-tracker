@@ -211,6 +211,36 @@ th {
   overflow-x: auto;
 }
 
+.favorite-thumbnail-cell {
+  width: 132px;
+  min-width: 132px;
+}
+
+.favorite-thumbnail-link {
+  display: inline-flex;
+  width: 116px;
+  height: 82px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--xrt-soft-border);
+  background: var(--xrt-panel);
+}
+
+.favorite-thumbnail {
+  max-width: 108px;
+  max-height: 74px;
+  object-fit: contain;
+}
+
+.favorite-pagination {
+  justify-content: center;
+}
+
+.favorite-pagination-status {
+  min-width: 9ch;
+  text-align: center;
+}
+
 .settings-list {
   display: grid;
   gap: 18px;

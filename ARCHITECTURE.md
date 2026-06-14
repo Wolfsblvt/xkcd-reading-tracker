@@ -29,9 +29,11 @@ User-created data is synchronized with `chrome.storage.sync`:
 - latest-comic acknowledgement state
 - extension-page appearance preference
 
-Public xkcd metadata is cached in `chrome.storage.local` because it is rebuildable and should not consume sync quota. The cache stores metadata fetched from xkcd `info.0.json` endpoints only when needed.
+Public xkcd metadata is cached in `chrome.storage.local` because it is rebuildable and should not consume sync quota. The cache stores metadata fetched from xkcd `info.0.json` endpoints only when needed, including title and image URL data used by the favorites library.
 
 The active browse mode is scoped per tab through `chrome.storage.session`, mediated by the service worker. It is not synchronized because changing a mode in one xkcd tab should not surprise another tab.
+
+Favorites library preferences for sort mode, rating filter, and page size are also stored in `chrome.storage.session`. Search text and current page are intentionally ephemeral so reopening the dashboard does not feel stuck on a previous narrow search.
 
 The extension deliberately avoids browser `localStorage`; Chrome documents that content scripts share Web Storage with the host page and extension service workers cannot use it.
 
@@ -124,7 +126,7 @@ The current mode is per tab/session, with synchronized settings only providing t
 
 The popup reads storage directly through the shared storage service and asks the active tab's content script for current-comic context when available. It remains compact and avoids full catalog management.
 
-The dashboard is the full management surface. It includes overview, a searchable favorites library, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. The favorites library can search cached titles or comic numbers, filter rated/unrated favorites, sort by rating/number/title, open a random visible favorite, and request missing xkcd metadata. Settings autosave on change, avoid self-triggered full-page refreshes, and are grouped vertically by category. Navigation settings separate filtered-navigation behavior from optional read/favorite button injection. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
+The dashboard is the full management surface. It includes overview, a searchable favorites library, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. The favorites library can search cached titles or comic numbers, filter rated/unrated favorites, sort by rating/number/title, page through results, show lazy remote thumbnails from xkcd image URLs, open a random visible favorite, and request missing xkcd metadata. Settings autosave on change, avoid self-triggered full-page refreshes, and are grouped vertically by category. Navigation settings separate filtered-navigation behavior from optional read/favorite button injection. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
 
 The popup and dashboard support light, dark, and system appearance. The content-script UI does not use that setting because it should visually follow the xkcd page it is augmenting.
 
@@ -153,7 +155,7 @@ Rebuildable local xkcd metadata is intentionally excluded.
 
 Import validates the format and replaces current tracker data. It writes the replacement data before removing stale old chunks where possible. Merge import is deferred because it needs deliberate conflict semantics.
 
-Reset removes sync state, local metadata cache, and session-scoped browse modes, then reinitializes defaults. The dashboard requires typing `RESET` and offers both "download backup and reset" and "reset without backup".
+Reset removes sync state, local metadata cache, and session-scoped UI state, then reinitializes defaults. The dashboard requires typing `RESET` and offers both "download backup and reset" and "reset without backup".
 
 ## Permissions And Security
 
@@ -165,7 +167,7 @@ Permissions are intentionally narrow:
 
 The extension does not request browsing history, broad host access, OAuth, downloads, notifications, or Explain xkcd permissions. Explain xkcd is opened as a normal user-facing link.
 
-The manifest uses local files only. There is no remote JavaScript and no analytics.
+The manifest uses local executable files only. There is no remote JavaScript and no analytics. Extension-page CSP allows xkcd image thumbnails from `https://imgs.xkcd.com`; those images are displayed lazily and are not stored as blobs in extension storage.
 
 ## Testing Strategy
 
@@ -175,6 +177,7 @@ Automated tests cover logic that is cheap and valuable to verify outside Chrome:
 - progress calculation,
 - unread range calculation,
 - favorite library search/filter/sort behavior,
+- favorite library pagination and session preference normalization,
 - filtered navigation,
 - continue-point advancement,
 - bulk range parsing,
@@ -188,7 +191,9 @@ Manual Chrome validation is still required for content-script injection, extensi
 
 The extension uses direct DOM rendering rather than a framework. The UI surface is small enough that a framework would add more operational cost than value.
 
-The metadata cache is intentionally lazy. Favorites may initially show comic numbers without titles until metadata is cached or fetched from the dashboard. Favorite title search only sees cached metadata, while comic-number search works immediately.
+The metadata cache is intentionally lazy. Favorites may initially show comic numbers without titles or thumbnails until metadata is cached or fetched from the dashboard. Favorite title search only sees cached metadata, while comic-number search works immediately.
+
+Favorite thumbnails are loaded directly from xkcd image URLs rather than cached in Chrome storage. This avoids sync quota issues, local cache eviction policy, and blob cleanup complexity. Thumbnail caching remains possible later if there is a clear offline or performance reason.
 
 Chrome sync is used as the first sync provider. It is simple and browser-native, but synchronization timing and cross-browser behavior are controlled by Chrome.
 
