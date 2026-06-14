@@ -97,6 +97,25 @@ async function setComicActionForTab(tabId, comicId) {
 }
 
 /**
+ * @param {number} tabId
+ * @returns {Promise<void>}
+ */
+async function refreshActionForTab(tabId) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: 'xrt:get-current-comic' });
+    const comicId = coerceComicId(response?.comicId);
+    if (comicId !== null) {
+      await setComicActionForTab(tabId, comicId);
+      return;
+    }
+  } catch {
+    // Most tabs do not have the xkcd content script. Muted is the expected state.
+  }
+
+  await setMutedActionForTab(tabId);
+}
+
+/**
  * @returns {Promise<void>}
  */
 async function checkLatestComic() {
@@ -335,9 +354,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'loading' || changeInfo.url) {
+  if (changeInfo.status === 'loading') {
     setMutedActionForTab(tabId).catch(logNonFatal);
+  } else if (changeInfo.status === 'complete') {
+    refreshActionForTab(tabId).catch(logNonFatal);
   }
+});
+
+chrome.tabs?.onActivated?.addListener(({ tabId }) => {
+  refreshActionForTab(tabId).catch(logNonFatal);
 });
 
 chrome.tabs?.onRemoved?.addListener((tabId) => {
