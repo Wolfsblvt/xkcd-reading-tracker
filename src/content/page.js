@@ -209,16 +209,26 @@ async function ensureLatestKnown(currentId) {
 
   try {
     const latest = await metadataCache.fetchLatestComicMetadata();
-    await storageService.updateMeta({
+    const patch = {
       latestKnownComicId: latest.num,
       latestCheckedAt: new Date().toISOString(),
-    });
+    };
+    if (!snapshot.meta.latestKnownComicId && !snapshot.meta.lastNewComicId) {
+      patch.acknowledgedLatestComicId = latest.num;
+      patch.lastNewComicId = null;
+    }
+    await storageService.updateMeta(patch);
   } catch (error) {
     logNonFatal(error);
-    await storageService.updateMeta({
+    const patch = {
       latestKnownComicId: currentId,
       latestCheckedAt: new Date().toISOString(),
-    });
+    };
+    if (!snapshot.meta.latestKnownComicId && !snapshot.meta.lastNewComicId) {
+      patch.acknowledgedLatestComicId = currentId;
+      patch.lastNewComicId = null;
+    }
+    await storageService.updateMeta(patch);
   }
   snapshot = await storageService.getTrackerSnapshot();
 }

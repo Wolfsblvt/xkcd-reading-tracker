@@ -246,9 +246,13 @@ export async function acknowledgeLatestComic(comicId) {
   }
 
   const snapshot = await getTrackerSnapshot();
+  const acknowledgedLatestComicId = Math.max(snapshot.meta.acknowledgedLatestComicId ?? 0, id);
   const meta = {
     ...snapshot.meta,
-    acknowledgedLatestComicId: Math.max(snapshot.meta.acknowledgedLatestComicId ?? 0, id),
+    acknowledgedLatestComicId,
+    lastNewComicId: snapshot.meta.lastNewComicId && acknowledgedLatestComicId >= snapshot.meta.lastNewComicId
+      ? null
+      : snapshot.meta.lastNewComicId,
     updatedAt: nowIso(),
   };
   await chrome.storage.sync.set({ [META_KEY]: meta });

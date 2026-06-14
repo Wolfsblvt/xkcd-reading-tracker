@@ -10,6 +10,7 @@ let snapshot = null;
 let metadataById = {};
 let storageUsage = null;
 let suppressOwnSettingsRefresh = false;
+let favoriteMetadataRefreshPending = false;
 
 /**
  * @param {string} tagName
@@ -65,6 +66,13 @@ function showMessage(text, isError = false) {
   const old = app.querySelector('.message');
   old?.remove();
   app.prepend(element('p', { className: `message${isError ? ' error' : ''}`, text }));
+}
+
+/**
+ * @param {unknown} error
+ */
+function logNonFatal(error) {
+  console.warn('[xkcd tracker]', error);
 }
 
 /**
@@ -243,16 +251,16 @@ function renderFavorites() {
 async function fetchMissingFavoriteTitles() {
   const favoriteIds = getFavoriteComicIds(snapshot.comics, snapshot.meta.latestKnownComicId);
   const missing = favoriteIds.filter((id) => !metadataById[String(id)]);
-  for (const id of missing.slice(0, 25)) {
-    try {
-      const metadata = await metadataCache.getOrFetchComicMetadata(id);
-      metadataById[String(id)] = metadata;
-    } catch {
-      // Missing metadata is nonfatal; the row already has a usable comic number.
-    }
-  }
+  const response = await chrome.runtime.sendMessage({
+    type: 'xrt:cache-favorite-metadata',
+    comicIds: missing,
+    limit: 250,
+  });
+  metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
   render();
-  showMessage(missing.length > 25 ? 'Fetched the first 25 missing favorite titles.' : 'Favorite title cache updated.');
+  showMessage(response?.ok === false
+    ? 'Some favorite titles could not be fetched.'
+    : 'Favorite title cache updated.');
 }
 
 function renderUnread() {
@@ -640,6 +648,34 @@ function render() {
   );
 }
 
+/**
+ * @param {number[]} favoriteIds
+ * @returns {Promise<void>}
+ */
+async function refreshMissingFavoriteMetadata(favoriteIds) {
+  if (favoriteMetadataRefreshPending) {
+    return;
+  }
+
+  const missing = favoriteIds.filter((id) => !metadataById[String(id)]);
+  if (missing.length === 0) {
+    return;
+  }
+
+  favoriteMetadataRefreshPending = true;
+  try {
+    await chrome.runtime.sendMessage({
+      type: 'xrt:cache-favorite-metadata',
+      comicIds: missing,
+      limit: 250,
+    });
+    metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
+    render();
+  } finally {
+    favoriteMetadataRefreshPending = false;
+  }
+}
+
 async function refresh() {
   snapshot = await storageService.getTrackerSnapshot();
   applyTheme(snapshot.settings.appearance.theme);
@@ -647,6 +683,7 @@ async function refresh() {
   metadataById = await metadataCache.getCachedMetadataForComics(favoriteIds);
   storageUsage = await storageService.getStorageUsage();
   render();
+  refreshMissingFavoriteMetadata(favoriteIds).catch(logNonFatal);
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {

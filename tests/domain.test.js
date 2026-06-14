@@ -10,6 +10,8 @@ import {
   isValidComicId,
   mergeComicStatePatch,
 } from '../src/shared/comic-state.js';
+import { createDefaultMeta } from '../src/shared/defaults.js';
+import { createLatestComicCheckPatch } from '../src/shared/latest-comic.js';
 import { calculateNavigation } from '../src/shared/navigation.js';
 import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../src/shared/ranges.js';
 
@@ -124,4 +126,42 @@ test('range parser normalizes input and reports unavailable comics', () => {
   assert.equal(formatRanges(getUnreadRangesFromIds(parsed.ids)), '1-4, 405-406');
   assert.equal(parsed.errors.includes('Comic 404 is not available.'), true);
   assert.equal(parsed.errors.some((error) => error.includes('nope')), true);
+});
+
+test('latest-comic check initializes acknowledged latest on first check', () => {
+  const meta = createDefaultMeta({ now: new Date('2026-01-01T00:00:00.000Z') });
+  const patch = createLatestComicCheckPatch(meta, 3000, '2026-01-02T00:00:00.000Z');
+
+  assert.deepEqual(patch, {
+    latestKnownComicId: 3000,
+    latestCheckedAt: '2026-01-02T00:00:00.000Z',
+    acknowledgedLatestComicId: 3000,
+    lastNewComicId: null,
+  });
+});
+
+test('latest-comic check repairs missing acknowledgement after content bootstrap', () => {
+  const meta = createDefaultMeta({ now: new Date('2026-01-01T00:00:00.000Z') });
+  meta.latestKnownComicId = 3000;
+  const patch = createLatestComicCheckPatch(meta, 3000, '2026-01-02T00:00:00.000Z');
+
+  assert.deepEqual(patch, {
+    latestKnownComicId: 3000,
+    latestCheckedAt: '2026-01-02T00:00:00.000Z',
+    acknowledgedLatestComicId: 3000,
+    lastNewComicId: null,
+  });
+});
+
+test('latest-comic check preserves a new comic as unacknowledged', () => {
+  const meta = createDefaultMeta({ now: new Date('2026-01-01T00:00:00.000Z') });
+  meta.latestKnownComicId = 3000;
+  meta.acknowledgedLatestComicId = 3000;
+  const patch = createLatestComicCheckPatch(meta, 3001, '2026-01-02T00:00:00.000Z');
+
+  assert.deepEqual(patch, {
+    latestKnownComicId: 3001,
+    latestCheckedAt: '2026-01-02T00:00:00.000Z',
+    lastNewComicId: 3001,
+  });
 });

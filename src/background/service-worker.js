@@ -1,6 +1,11 @@
-import { BROWSE_MODES, LATEST_COMIC_ALARM, SESSION_TAB_MODE_PREFIX } from '../shared/constants.js';
+import { BROWSE_MODES, LATEST_COMIC_ALARM, SESSION_TAB_MODE_PREFIX, isChunkKey } from '../shared/constants.js';
+import { getFavoriteComicIds } from '../shared/comic-state.js';
+import { createLatestComicCheckPatch } from '../shared/latest-comic.js';
 import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
+
+const FAVORITE_METADATA_BATCH_SIZE = 50;
+let favoriteMetadataRefreshPromise = null;
 
 /**
  * @param {unknown} error
@@ -60,33 +65,71 @@ async function updateBadge() {
 async function checkLatestComic() {
   const before = await storageService.getTrackerSnapshot();
   const latest = await metadataCache.fetchLatestComicMetadata();
-  const patch = {
-    latestKnownComicId: latest.num,
-    latestCheckedAt: new Date().toISOString(),
-  };
-
-  if (!before.meta.latestKnownComicId) {
-    patch.acknowledgedLatestComicId = latest.num;
-    patch.lastNewComicId = null;
-  } else if (latest.num > before.meta.latestKnownComicId) {
-    patch.lastNewComicId = latest.num;
-  }
-
+  const patch = createLatestComicCheckPatch(before.meta, latest.num, new Date().toISOString());
   await storageService.updateMeta(patch);
   await updateBadge();
+}
+
+/**
+ * @param {{ comicIds?: unknown, limit?: unknown }} [options]
+ * @returns {Promise<{ requested: number, fetched: number, failed: number }>}
+ */
+async function cacheMissingFavoriteMetadata(options = {}) {
+  const snapshot = await storageService.getTrackerSnapshot();
+  const favoriteIds = getFavoriteComicIds(snapshot.comics, snapshot.meta.latestKnownComicId);
+  const favoriteIdSet = new Set(favoriteIds);
+  const requestedIds = Array.isArray(options.comicIds)
+    ? [...new Set(options.comicIds.map(Number))].filter((id) => favoriteIdSet.has(id))
+    : favoriteIds;
+  const cached = await metadataCache.getCachedMetadataForComics(requestedIds);
+  const missing = requestedIds.filter((id) => !cached[String(id)]);
+  const limit = Math.max(1, Math.min(250, Number(options.limit) || FAVORITE_METADATA_BATCH_SIZE));
+  let fetched = 0;
+  let failed = 0;
+
+  for (const id of missing.slice(0, limit)) {
+    try {
+      await metadataCache.getOrFetchComicMetadata(id);
+      fetched += 1;
+    } catch (error) {
+      failed += 1;
+      logNonFatal(error);
+    }
+  }
+
+  return { requested: missing.length, fetched, failed };
+}
+
+function queueFavoriteMetadataRefresh() {
+  if (favoriteMetadataRefreshPromise) {
+    return favoriteMetadataRefreshPromise;
+  }
+
+  favoriteMetadataRefreshPromise = cacheMissingFavoriteMetadata()
+    .catch((error) => {
+      logNonFatal(error);
+      return { requested: 0, fetched: 0, failed: 1 };
+    })
+    .finally(() => {
+      favoriteMetadataRefreshPromise = null;
+    });
+
+  return favoriteMetadataRefreshPromise;
 }
 
 chrome.runtime.onInstalled.addListener(() => {
   storageService.ensureStorageReady()
     .then(configureLatestComicAlarm)
     .then(checkLatestComic)
+    .then(queueFavoriteMetadataRefresh)
     .catch(logNonFatal);
 });
 
 chrome.runtime.onStartup.addListener(() => {
   storageService.ensureStorageReady()
     .then(configureLatestComicAlarm)
-    .then(updateBadge)
+    .then(checkLatestComic)
+    .then(queueFavoriteMetadataRefresh)
     .catch(logNonFatal);
 });
 
@@ -154,6 +197,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'xrt:cache-favorite-metadata') {
+    cacheMissingFavoriteMetadata({
+      comicIds: message.comicIds,
+      limit: message.limit,
+    })
+      .then((result) => sendResponse({ ok: true, ...result }))
+      .catch((error) => {
+        logNonFatal(error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    return true;
+  }
+
   if (message?.type === 'xrt:open-dashboard') {
     chrome.runtime.openOptionsPage()
       .then(() => sendResponse({ ok: true }))
@@ -172,10 +228,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
     return;
   }
 
-  if (Object.keys(changes).some((key) => key.startsWith('xrt:'))) {
+  const changedKeys = Object.keys(changes);
+  if (changedKeys.some((key) => key.startsWith('xrt:'))) {
     updateBadge().catch(logNonFatal);
     if (changes['xrt:settings']) {
       configureLatestComicAlarm().catch(logNonFatal);
+    }
+    if (changedKeys.some(isChunkKey)) {
+      queueFavoriteMetadataRefresh().catch(logNonFatal);
     }
   }
 });
