@@ -21,11 +21,14 @@
   --xrt-nav-padding: 1.5px 12px;
   --xrt-nav-hover-bg: #fff;
   --xrt-nav-hover-color: #6E7B91;
+  --xrt-popup-min-height: 560px;
+  --xrt-popup-max-height: 720px;
 }
 
 body {
   width: 520px;
-  max-height: 760px;
+  min-height: var(--xrt-popup-min-height);
+  max-height: var(--xrt-popup-max-height);
   margin: 0;
   color: var(--xrt-text);
   background: var(--xrt-page-bg);
@@ -35,11 +38,12 @@ body {
   font-weight: 500;
   line-height: 1.35;
   text-align: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 main {
-  max-height: min(760px, calc(100vh - 12px));
+  min-height: calc(var(--xrt-popup-min-height) - 12px);
+  max-height: calc(var(--xrt-popup-max-height) - 12px);
   margin: 6px;
   padding: 8px 10px 10px;
   overflow-y: auto;
