@@ -1,5 +1,5 @@
 import { BROWSE_MODES, LATEST_COMIC_ALARM, SESSION_TAB_MODE_PREFIX, isChunkKey } from '../shared/constants.js';
-import { getFavoriteComicIds } from '../shared/comic-state.js';
+import { coerceComicId, getFavoriteComicIds } from '../shared/comic-state.js';
 import { createLatestComicCheckPatch } from '../shared/latest-comic.js';
 import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
@@ -98,6 +98,33 @@ async function cacheMissingFavoriteMetadata(options = {}) {
   }
 
   return { requested: missing.length, fetched, failed };
+}
+
+/**
+ * @param {{ comicIds?: unknown, limit?: unknown }} [options]
+ * @returns {Promise<{ metadataById: Record<string, import('../shared/types.js').ComicMetadata>, fetched: number, failed: number }>}
+ */
+async function getMetadataForComics(options = {}) {
+  const requestedIds = Array.isArray(options.comicIds)
+    ? [...new Set(options.comicIds.map(coerceComicId).filter((id) => id !== null))]
+    : [];
+  const limit = Math.max(1, Math.min(20, Number(options.limit) || 10));
+  const metadataById = await metadataCache.getCachedMetadataForComics(requestedIds);
+  const missing = requestedIds.filter((id) => !metadataById[String(id)]);
+  let fetched = 0;
+  let failed = 0;
+
+  for (const id of missing.slice(0, limit)) {
+    try {
+      metadataById[String(id)] = await metadataCache.getOrFetchComicMetadata(id);
+      fetched += 1;
+    } catch (error) {
+      failed += 1;
+      logNonFatal(error);
+    }
+  }
+
+  return { metadataById, fetched, failed };
 }
 
 function queueFavoriteMetadataRefresh() {
@@ -199,6 +226,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'xrt:cache-favorite-metadata') {
     cacheMissingFavoriteMetadata({
+      comicIds: message.comicIds,
+      limit: message.limit,
+    })
+      .then((result) => sendResponse({ ok: true, ...result }))
+      .catch((error) => {
+        logNonFatal(error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    return true;
+  }
+
+  if (message?.type === 'xrt:get-comic-metadata') {
+    getMetadataForComics({
       comicIds: message.comicIds,
       limit: message.limit,
     })

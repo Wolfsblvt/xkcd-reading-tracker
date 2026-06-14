@@ -5,7 +5,6 @@
 :root {
   color-scheme: light dark;
   --xrt-popup-width: 620px;
-  --xrt-popup-min-height: 760px;
   --xrt-page-bg: #96A8C8;
   --xrt-bg: #fff;
   --xrt-text: #000;
@@ -51,14 +50,12 @@
 
 html {
   width: var(--xrt-popup-width);
-  min-height: var(--xrt-popup-min-height);
   background: var(--xrt-page-bg);
   overflow-y: auto;
 }
 
 body {
   width: var(--xrt-popup-width);
-  min-height: var(--xrt-popup-min-height);
   margin: 0;
   color: var(--xrt-text);
   background: var(--xrt-page-bg);
@@ -72,7 +69,6 @@ body {
 }
 
 main {
-  min-height: calc(var(--xrt-popup-min-height) - 12px);
   margin: 6px;
   padding: 8px 10px 10px;
   overflow: visible;

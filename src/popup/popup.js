@@ -130,6 +130,32 @@ async function openTab(url) {
 }
 
 /**
+ * @param {number[]} comicIds
+ * @returns {Promise<Record<string, import('../shared/types.js').ComicMetadata>>}
+ */
+async function getPopupMetadata(comicIds) {
+  const ids = [...new Set(comicIds)].filter((id) => Number.isInteger(id));
+  if (ids.length === 0) {
+    return {};
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'xrt:get-comic-metadata',
+      comicIds: ids,
+      limit: 6,
+    });
+    if (response?.ok && response.metadataById && typeof response.metadataById === 'object') {
+      return response.metadataById;
+    }
+  } catch {
+    // Fall back to local cache below. Metadata is nice-to-have in the popup.
+  }
+
+  return metadataCache.getCachedMetadataForComics(ids);
+}
+
+/**
  * @param {string} url
  * @returns {number | null}
  */
@@ -590,7 +616,7 @@ async function refresh() {
     snapshot.meta.lastNewComicId,
     activeComic?.id,
   ].filter((id) => Number.isInteger(id));
-  popupMetadataById = await metadataCache.getCachedMetadataForComics(/** @type {number[]} */ (metadataIds));
+  popupMetadataById = await getPopupMetadata(/** @type {number[]} */ (metadataIds));
   render();
 }
 
