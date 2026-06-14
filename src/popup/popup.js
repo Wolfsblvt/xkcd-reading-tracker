@@ -12,6 +12,27 @@ const app = document.getElementById('app');
 let snapshot = null;
 let activeComic = null;
 let popupMetadataById = {};
+const POPUP_STYLE_PROPERTIES = Object.freeze([
+  '--xrt-page-bg',
+  '--xrt-bg',
+  '--xrt-text',
+  '--xrt-border',
+  '--xrt-soft-border',
+  '--xrt-link',
+  '--xrt-link-font-weight',
+  '--xrt-link-text-decoration',
+  '--xrt-nav-bg',
+  '--xrt-nav-color',
+  '--xrt-nav-border',
+  '--xrt-nav-radius',
+  '--xrt-nav-font-weight',
+  '--xrt-nav-padding',
+  '--xrt-nav-margin',
+  '--xrt-nav-shadow',
+  '--xrt-nav-font-size',
+  '--xrt-nav-hover-bg',
+  '--xrt-nav-hover-color',
+]);
 
 /**
  * @param {string} tagName
@@ -71,6 +92,26 @@ function applyTheme(theme) {
 }
 
 /**
+ * @param {Record<string, string> | null | undefined} style
+ */
+function applyPageStyle(style) {
+  for (const property of POPUP_STYLE_PROPERTIES) {
+    document.documentElement.style.removeProperty(property);
+  }
+
+  if (!style || typeof style !== 'object') {
+    return;
+  }
+
+  for (const property of POPUP_STYLE_PROPERTIES) {
+    const value = style[property];
+    if (typeof value === 'string' && value.trim()) {
+      document.documentElement.style.setProperty(property, value);
+    }
+  }
+}
+
+/**
  * @param {string} text
  * @param {boolean} [isError]
  */
@@ -109,7 +150,7 @@ function getComicIdFromUrl(url) {
 }
 
 /**
- * @returns {Promise<{ id: number, title: string | null } | null>}
+ * @returns {Promise<{ id: number, title: string | null, pageStyle: Record<string, string> | null } | null>}
  */
 async function getActiveComic() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -120,14 +161,18 @@ async function getActiveComic() {
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: 'xrt:get-current-comic' });
     if (response?.comicId) {
-      return { id: response.comicId, title: response.title ?? null };
+      return {
+        id: response.comicId,
+        title: response.title ?? null,
+        pageStyle: response.pageStyle && typeof response.pageStyle === 'object' ? response.pageStyle : null,
+      };
     }
   } catch {
     // The active tab may not have the content script. Falling back to URL is enough for numbered pages.
   }
 
   const id = tab.url ? getComicIdFromUrl(tab.url) : null;
-  return id ? { id, title: null } : null;
+  return id ? { id, title: null, pageStyle: null } : null;
 }
 
 /**
@@ -538,6 +583,7 @@ async function refresh() {
   snapshot = await storageService.getTrackerSnapshot();
   applyTheme(snapshot.settings.appearance.theme);
   activeComic = await getActiveComic();
+  applyPageStyle(activeComic?.pageStyle);
   const metadataIds = [
     snapshot.meta.continuePoint,
     snapshot.meta.latestKnownComicId,

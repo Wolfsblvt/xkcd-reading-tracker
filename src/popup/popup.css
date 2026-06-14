@@ -3,7 +3,9 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
+  --xrt-popup-width: 620px;
+  --xrt-popup-min-height: 760px;
   --xrt-page-bg: #96A8C8;
   --xrt-bg: #fff;
   --xrt-text: #000;
@@ -19,16 +21,44 @@
   --xrt-nav-radius: 3px;
   --xrt-nav-font-weight: 600;
   --xrt-nav-padding: 1.5px 12px;
+  --xrt-nav-margin: 0 4px;
+  --xrt-nav-shadow: 0 0 5px 0 gray;
+  --xrt-nav-font-size: 16px;
   --xrt-nav-hover-bg: #fff;
   --xrt-nav-hover-color: #6E7B91;
-  --xrt-popup-min-height: 560px;
-  --xrt-popup-max-height: 720px;
+  --xrt-link-font-weight: 800;
+  --xrt-link-text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --xrt-page-bg: #384052;
+    --xrt-bg: #181a1f;
+    --xrt-text: #e8e6e3;
+    --xrt-muted: #aaa;
+    --xrt-panel: #181a1f;
+    --xrt-border: #b8b2a7;
+    --xrt-soft-border: #526074;
+    --xrt-link: #8ea6ca;
+    --xrt-nav-bg: #4d5868;
+    --xrt-nav-color: #f5f3ef;
+    --xrt-nav-border: #b8b2a7;
+    --xrt-nav-hover-bg: #181a1f;
+    --xrt-nav-hover-color: #8ea6ca;
+    --xrt-nav-shadow: 0 0 5px 0 #111;
+  }
+}
+
+html {
+  width: var(--xrt-popup-width);
+  min-height: var(--xrt-popup-min-height);
+  background: var(--xrt-page-bg);
+  overflow-y: auto;
 }
 
 body {
-  width: 520px;
+  width: var(--xrt-popup-width);
   min-height: var(--xrt-popup-min-height);
-  max-height: var(--xrt-popup-max-height);
   margin: 0;
   color: var(--xrt-text);
   background: var(--xrt-page-bg);
@@ -43,10 +73,9 @@ body {
 
 main {
   min-height: calc(var(--xrt-popup-min-height) - 12px);
-  max-height: calc(var(--xrt-popup-max-height) - 12px);
   margin: 6px;
   padding: 8px 10px 10px;
-  overflow-y: auto;
+  overflow: visible;
   background: var(--xrt-bg);
   border: 1.5px solid var(--xrt-border);
   border-radius: 12px;
@@ -72,8 +101,8 @@ h2 {
 
 a {
   color: var(--xrt-link);
-  font-weight: 800;
-  text-decoration: none;
+  font-weight: var(--xrt-link-font-weight);
+  text-decoration: var(--xrt-link-text-decoration);
 }
 
 a:hover,
@@ -93,12 +122,12 @@ button {
   min-height: 24px;
   border: 1.5px solid var(--xrt-nav-border);
   border-radius: var(--xrt-nav-radius);
-  margin: 0 4px;
+  margin: var(--xrt-nav-margin);
   background: var(--xrt-nav-bg);
   color: var(--xrt-nav-color);
   padding: var(--xrt-nav-padding);
-  box-shadow: 0 0 5px 0 gray;
-  font-size: 16px;
+  box-shadow: var(--xrt-nav-shadow);
+  font-size: var(--xrt-nav-font-size);
   font-weight: var(--xrt-nav-font-weight);
   line-height: 1.2;
   text-decoration: none;
@@ -207,10 +236,12 @@ button.xrt-rating-clear {
   justify-content: center;
   margin: 0;
   padding: 0;
-  border-color: transparent;
+  border: 0;
   background: transparent;
   color: inherit;
+  box-shadow: none;
   line-height: 1;
+  outline: none;
   outline-offset: 0;
 }
 

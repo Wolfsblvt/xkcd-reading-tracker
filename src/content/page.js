@@ -311,31 +311,61 @@ function syncPageStyleVariables() {
     return;
   }
 
+  const pageStyle = getPageStyleSnapshot();
+
+  for (const target of [panel, document.documentElement]) {
+    for (const [property, value] of Object.entries(pageStyle)) {
+      target.style.setProperty(property, value);
+    }
+  }
+}
+
+/**
+ * @returns {Record<string, string>}
+ */
+function getPageStyleSnapshot() {
+  const bodyStyle = getComputedStyle(document.body);
+  const middleContainer = document.querySelector('#middleContainer');
+  const middleStyle = middleContainer ? getComputedStyle(middleContainer) : null;
   const navLink = document.querySelector('.comicNav a');
   const pageLink = [...document.querySelectorAll('#middleContainer a[href]')]
     .find((link) => !link.closest('.comicNav') && !link.closest(`#${PANEL_ID}`));
   const navStyle = navLink ? getComputedStyle(navLink) : null;
   const pageLinkStyle = pageLink ? getComputedStyle(pageLink) : null;
+  const pageStyle = {
+    '--xrt-page-bg': bodyStyle.backgroundColor,
+    '--xrt-bg': middleStyle?.backgroundColor ?? bodyStyle.backgroundColor,
+    '--xrt-text': middleStyle?.color ?? bodyStyle.color,
+    '--xrt-border': middleStyle?.borderColor ?? bodyStyle.color,
+    '--xrt-soft-border': bodyStyle.backgroundColor,
+  };
 
-  for (const target of [panel, document.documentElement]) {
-    if (navStyle) {
-      target.style.setProperty('--xrt-nav-bg', navStyle.backgroundColor);
-      target.style.setProperty('--xrt-nav-color', navStyle.color);
-      target.style.setProperty('--xrt-nav-border', navStyle.borderColor);
-      target.style.setProperty('--xrt-nav-radius', navStyle.borderRadius);
-      target.style.setProperty('--xrt-nav-font-weight', navStyle.fontWeight);
-      target.style.setProperty('--xrt-nav-padding', navStyle.padding);
-      target.style.setProperty('--xrt-nav-margin', navStyle.margin);
-      target.style.setProperty('--xrt-nav-hover-bg', navStyle.color);
-      target.style.setProperty('--xrt-nav-hover-color', navStyle.backgroundColor);
-    }
-
-    if (pageLinkStyle) {
-      target.style.setProperty('--xrt-link-color', pageLinkStyle.color);
-      target.style.setProperty('--xrt-link-font-weight', pageLinkStyle.fontWeight);
-      target.style.setProperty('--xrt-link-text-decoration', pageLinkStyle.textDecorationLine);
-    }
+  if (navStyle) {
+    Object.assign(pageStyle, {
+      '--xrt-nav-bg': navStyle.backgroundColor,
+      '--xrt-nav-color': navStyle.color,
+      '--xrt-nav-border': navStyle.borderColor,
+      '--xrt-nav-radius': navStyle.borderRadius,
+      '--xrt-nav-font-weight': navStyle.fontWeight,
+      '--xrt-nav-padding': navStyle.padding,
+      '--xrt-nav-margin': navStyle.margin,
+      '--xrt-nav-shadow': navStyle.boxShadow,
+      '--xrt-nav-font-size': navStyle.fontSize,
+      '--xrt-nav-hover-bg': navStyle.color,
+      '--xrt-nav-hover-color': navStyle.backgroundColor,
+    });
   }
+
+  if (pageLinkStyle) {
+    Object.assign(pageStyle, {
+      '--xrt-link': pageLinkStyle.color,
+      '--xrt-link-color': pageLinkStyle.color,
+      '--xrt-link-font-weight': pageLinkStyle.fontWeight,
+      '--xrt-link-text-decoration': pageLinkStyle.textDecorationLine,
+    });
+  }
+
+  return pageStyle;
 }
 
 /**
@@ -910,6 +940,7 @@ function addMessageHandlers() {
       sendResponse({
         comicId: currentComic?.id ?? null,
         title: currentComic?.title ?? null,
+        pageStyle: getPageStyleSnapshot(),
       });
       return false;
     }
