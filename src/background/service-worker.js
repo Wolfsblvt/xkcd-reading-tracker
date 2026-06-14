@@ -1,5 +1,5 @@
 import { BROWSE_MODES, LATEST_COMIC_ALARM, SESSION_TAB_MODE_PREFIX, isChunkKey } from '../shared/constants.js';
-import { coerceComicId, getFavoriteComicIds } from '../shared/comic-state.js';
+import { coerceComicId, getFavoriteComicIds, isValidComicId } from '../shared/comic-state.js';
 import { createLatestComicCheckPatch } from '../shared/latest-comic.js';
 import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
@@ -98,6 +98,21 @@ async function setComicActionForTab(tabId, comicId) {
 
 /**
  * @param {number} tabId
+ * @param {number} comicId
+ * @returns {Promise<void>}
+ */
+async function setComicActionForTabIfValid(tabId, comicId) {
+  const snapshot = await storageService.getTrackerSnapshot();
+  if (isValidComicId(comicId, snapshot.meta.latestKnownComicId)) {
+    await setComicActionForTab(tabId, comicId);
+    return;
+  }
+
+  await setMutedActionForTab(tabId);
+}
+
+/**
+ * @param {number} tabId
  * @returns {Promise<void>}
  */
 async function refreshActionForTab(tabId) {
@@ -105,7 +120,7 @@ async function refreshActionForTab(tabId) {
     const response = await chrome.tabs.sendMessage(tabId, { type: 'xrt:get-current-comic' });
     const comicId = coerceComicId(response?.comicId);
     if (comicId !== null) {
-      await setComicActionForTab(tabId, comicId);
+      await setComicActionForTabIfValid(tabId, comicId);
       return;
     }
   } catch {
@@ -278,7 +293,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return false;
     }
 
-    setComicActionForTab(tabId, comicId)
+    setComicActionForTabIfValid(tabId, comicId)
       .then(() => sendResponse({ ok: true }))
       .catch((error) => {
         logNonFatal(error);

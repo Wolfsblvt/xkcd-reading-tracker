@@ -38,6 +38,7 @@ let autoReadTimer = null;
 let autoReadTimerArmed = false;
 let altTextTimer = null;
 let refreshQueued = false;
+let dashboardUrl = '';
 
 /**
  * @param {unknown} error
@@ -124,6 +125,31 @@ async function sendRuntimeMessage(message) {
   } catch {
     return null;
   }
+}
+
+/**
+ * @returns {string}
+ */
+function getDashboardUrl() {
+  if (dashboardUrl) {
+    return dashboardUrl;
+  }
+
+  try {
+    dashboardUrl = chrome.runtime.getURL('src/dashboard/dashboard.html');
+  } catch (error) {
+    logNonFatal(error);
+  }
+
+  return dashboardUrl;
+}
+
+async function reportComicPageDetected() {
+  if (!currentComic || !snapshot || !isValidComicId(currentComic.id, snapshot.meta.latestKnownComicId)) {
+    return;
+  }
+
+  await sendRuntimeMessage({ type: 'xrt:comic-page-detected', comicId: currentComic.id });
 }
 
 /**
@@ -265,7 +291,11 @@ function startActiveTimer(delaySeconds, callback) {
 
     if (activeMs >= requiredMs) {
       cancel();
-      await callback();
+      try {
+        await callback();
+      } catch (error) {
+        logNonFatal(error);
+      }
       return;
     }
 
@@ -632,19 +662,23 @@ function renderHeader() {
 }
 
 function renderLinks() {
+  const href = getDashboardUrl();
   const row = element('div', { className: 'xrt-link-row' });
   const link = element('a', {
     className: 'xrt-site-link xrt-dashboard-link',
     text: 'Dashboard',
     attrs: {
-      href: chrome.runtime.getURL('src/dashboard/dashboard.html'),
+      href: href || '#',
       title: 'Open the full xkcd Reading Tracker dashboard',
     },
   });
 
   const openDashboard = async (event) => {
     event.preventDefault();
-    await sendRuntimeMessage({ type: 'xrt:open-dashboard' });
+    const response = await sendRuntimeMessage({ type: 'xrt:open-dashboard' });
+    if (response?.ok !== true && href) {
+      window.open(href, '_blank', 'noopener,noreferrer');
+    }
   };
   link.addEventListener('click', openDashboard);
   link.addEventListener('auxclick', async (event) => {
@@ -963,7 +997,7 @@ export async function initXkcdTracker() {
   if (!currentComic) {
     return;
   }
-  sendRuntimeMessage({ type: 'xrt:comic-page-detected', comicId: currentComic.id }).catch(logNonFatal);
+  getDashboardUrl();
   altRevealed = false;
   altRevealAnimationPending = false;
   autoReadTimerArmed = false;
@@ -976,6 +1010,7 @@ export async function initXkcdTracker() {
   await ensureLatestKnown(currentComic.id);
   await loadBrowseMode();
   addMessageHandlers();
+  await reportComicPageDetected();
 
   if (snapshot?.meta.lastNewComicId && currentComic.id >= snapshot.meta.lastNewComicId) {
     await storageService.acknowledgeLatestComic(currentComic.id);
@@ -984,4 +1019,5 @@ export async function initXkcdTracker() {
   }
 
   render();
+  await reportComicPageDetected();
 }
