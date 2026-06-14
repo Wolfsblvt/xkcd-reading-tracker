@@ -2,6 +2,7 @@ import { deflateRawSync } from 'node:zlib';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { generateAssets } from './generate-assets.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const distDir = join(root, 'dist');
@@ -22,6 +23,8 @@ const packageRoots = [
   'assets/icons',
   'src',
 ];
+
+await generateAssets();
 
 /**
  * @param {Buffer} buffer

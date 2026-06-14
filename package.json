@@ -6,6 +6,7 @@
   "license": "AGPL-3.0-or-later",
   "description": "A maintainable Chrome MV3 extension for tracking xkcd reading progress.",
   "scripts": {
+    "assets": "node tools/generate-assets.mjs",
     "build": "node tools/package-extension.mjs",
     "package": "node tools/package-extension.mjs",
     "test": "node --test",
