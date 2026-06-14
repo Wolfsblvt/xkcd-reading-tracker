@@ -65,22 +65,22 @@
   cursor: pointer;
 }
 
-#xrt-panel button:hover:not(:disabled),
-#xrt-panel button:focus-visible {
+#xrt-panel button:not(.xrt-rating-button):not(.xrt-rating-clear):hover:not(:disabled),
+#xrt-panel button:not(.xrt-rating-button):not(.xrt-rating-clear):focus-visible {
   background: var(--xrt-nav-hover-bg);
   color: var(--xrt-nav-hover-color);
   text-decoration: none;
 }
 
-#xrt-panel button[aria-pressed="true"] {
+#xrt-panel button[aria-pressed="true"]:not(.xrt-rating-button) {
   background: var(--xrt-nav-hover-bg);
   color: var(--xrt-nav-hover-color);
   box-shadow: inset 0 0 0 1px var(--xrt-nav-hover-color);
   outline: none;
 }
 
-#xrt-panel button[aria-pressed="true"]:hover:not(:disabled),
-#xrt-panel button[aria-pressed="true"]:focus-visible {
+#xrt-panel button[aria-pressed="true"]:not(.xrt-rating-button):hover:not(:disabled),
+#xrt-panel button[aria-pressed="true"]:not(.xrt-rating-button):focus-visible {
   background: var(--xrt-nav-hover-bg);
   color: var(--xrt-nav-hover-color);
 }
@@ -203,12 +203,12 @@
   pointer-events: none;
 }
 
-#xrt-panel .xrt-rating-button:hover,
-#xrt-panel .xrt-rating-button:focus-visible {
-  border-color: currentColor;
-}
-
-#xrt-panel .xrt-rating-button[aria-pressed="true"] {
+#xrt-panel button.xrt-rating-button:hover:not(:disabled),
+#xrt-panel button.xrt-rating-button:focus-visible,
+#xrt-panel button.xrt-rating-button[aria-pressed="true"] {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
   box-shadow: none;
   outline: none;
 }
