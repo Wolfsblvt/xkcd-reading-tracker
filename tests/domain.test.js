@@ -119,13 +119,20 @@ test('filtered navigation calculates neighbors around the current comic', () => 
   });
 });
 
-test('range parser normalizes input and reports unavailable comics', () => {
-  const parsed = parseComicRangeInput('3-1, 4, 404, nope, 405..406', { latestComicId: 406 });
+test('range parser accepts common range formats and reports invalid input', () => {
+  const parsed = parseComicRangeInput('1 - 3, 4, 404, nope, 405..406, 407\u2013408, 409 \u2014 410', { latestComicId: 410 });
 
-  assert.deepEqual(parsed.ids, [1, 2, 3, 4, 405, 406]);
-  assert.equal(formatRanges(getUnreadRangesFromIds(parsed.ids)), '1-4, 405-406');
+  assert.deepEqual(parsed.ids, [1, 2, 3, 4, 405, 406, 407, 408, 409, 410]);
+  assert.equal(formatRanges(getUnreadRangesFromIds(parsed.ids)), '1-4, 405-410');
   assert.equal(parsed.errors.includes('Comic 404 is not available.'), true);
   assert.equal(parsed.errors.some((error) => error.includes('nope')), true);
+});
+
+test('range parser rejects reversed ranges', () => {
+  const parsed = parseComicRangeInput('3-1, 5', { latestComicId: 10 });
+
+  assert.deepEqual(parsed.ids, [5]);
+  assert.equal(parsed.errors.some((error) => error.includes('3-1') && error.includes('reversed')), true);
 });
 
 test('latest-comic check initializes acknowledged latest on first check', () => {

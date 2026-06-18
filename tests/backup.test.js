@@ -60,3 +60,22 @@ test('migration bootstrap creates current meta and settings', () => {
   assert.equal(migrated.updates['xrt:settings'].navigation.showPageNavActions, true);
   assert.equal(migrated.updates['xrt:settings'].navigation.useXkcdStyleLabels, true);
 });
+
+test('migration normalizes malformed stored settings', () => {
+  const migrated = migrateSyncItems({
+    'xrt:settings': {
+      autoMarkRead: {
+        enabled: 'false',
+        delaySeconds: '7',
+      },
+      navigation: {
+        showExplainLink: 'true',
+      },
+    },
+  });
+
+  assert.equal(migrated.changed, true);
+  assert.equal(migrated.updates['xrt:settings'].autoMarkRead.enabled, false);
+  assert.equal(migrated.updates['xrt:settings'].autoMarkRead.delaySeconds, 7);
+  assert.equal(migrated.updates['xrt:settings'].navigation.showExplainLink, true);
+});

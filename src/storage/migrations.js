@@ -46,8 +46,9 @@ export function migrateSyncItems(items) {
     changed = true;
   }
 
-  if (!items[SETTINGS_KEY]) {
-    updates[SETTINGS_KEY] = normalizeSettings(items[SETTINGS_KEY]);
+  const normalizedSettings = normalizeSettings(items[SETTINGS_KEY]);
+  if (!items[SETTINGS_KEY] || JSON.stringify(items[SETTINGS_KEY]) !== JSON.stringify(normalizedSettings)) {
+    updates[SETTINGS_KEY] = normalizedSettings;
     changed = true;
   }
 

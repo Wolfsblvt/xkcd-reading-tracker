@@ -48,14 +48,18 @@ export function formatRanges(ranges) {
 export function parseComicRangeInput(input, { latestComicId }) {
   const errors = [];
   const ids = [];
-  const normalizedInput = input.trim();
+  const normalizedInput = input
+    .trim()
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/(\d+)\s*-\s*(\d+)/g, '$1-$2')
+    .replace(/(\d+)\s*\.\.\s*(\d+)/g, '$1..$2');
   if (!normalizedInput) {
     return { ids, ranges: [], errors: ['Enter at least one comic number or range.'] };
   }
 
   const tokens = normalizedInput.split(/[,\s;]+/).filter(Boolean);
   for (const token of tokens) {
-    const match = token.match(/^(\d+)(?:\s*(?:-|\.\.)\s*(\d+))?$/);
+    const match = token.match(/^(\d+)(?:(?:-|\.\.)(\d+))?$/);
     if (!match) {
       errors.push(`Could not parse "${token}". Use numbers or ranges like 10-20.`);
       continue;
@@ -68,8 +72,13 @@ export function parseComicRangeInput(input, { latestComicId }) {
       continue;
     }
 
-    const start = Math.min(first, second);
-    const end = Math.max(first, second);
+    if (second < first) {
+      errors.push(`Range "${token}" is reversed. Use the lower number first.`);
+      continue;
+    }
+
+    const start = first;
+    const end = second;
     for (let id = start; id <= end; id += 1) {
       if (isValidComicId(id, latestComicId)) {
         ids.push(id);
@@ -94,4 +103,3 @@ export function parseComicRangeInput(input, { latestComicId }) {
 export function getUnreadRangesFromIds(unreadIds) {
   return normalizeRanges(unreadIds);
 }
-

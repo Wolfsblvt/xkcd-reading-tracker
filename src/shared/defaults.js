@@ -117,7 +117,7 @@ export function normalizeSettings(value) {
 
   return {
     autoMarkRead: {
-      enabled: Boolean(autoMarkRead.enabled),
+      enabled: normalizeBoolean(autoMarkRead.enabled, defaults.autoMarkRead.enabled),
       delaySeconds: normalizeDelaySeconds(autoMarkRead.delaySeconds ?? defaults.autoMarkRead.delaySeconds),
     },
     altText: {

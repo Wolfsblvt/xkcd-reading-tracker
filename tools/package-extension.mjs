@@ -145,11 +145,58 @@ function createZip(files) {
   return Buffer.concat([...localParts, centralDirectory, end]);
 }
 
+/**
+ * @param {Buffer} zip
+ * @returns {string[]}
+ */
+function listZipEntries(zip) {
+  const entries = [];
+
+  for (let offset = 0; offset + 30 <= zip.length;) {
+    const signature = zip.readUInt32LE(offset);
+    if (signature !== 0x04034b50) {
+      break;
+    }
+
+    const compressionMethod = zip.readUInt16LE(offset + 8);
+    const compressedSize = zip.readUInt32LE(offset + 18);
+    const fileNameLength = zip.readUInt16LE(offset + 26);
+    const extraFieldLength = zip.readUInt16LE(offset + 28);
+    const fileNameStart = offset + 30;
+    const fileNameEnd = fileNameStart + fileNameLength;
+    if (compressionMethod !== 8) {
+      throw new Error(`Unexpected ZIP compression method ${compressionMethod}.`);
+    }
+    if (fileNameEnd > zip.length) {
+      throw new Error('ZIP file name extends past the end of the archive.');
+    }
+
+    entries.push(zip.toString('utf8', fileNameStart, fileNameEnd));
+    offset = fileNameEnd + extraFieldLength + compressedSize;
+  }
+
+  return entries;
+}
+
+/**
+ * @param {Buffer} zip
+ * @param {string[]} expectedFiles
+ */
+function verifyZipEntries(zip, expectedFiles) {
+  const actual = listZipEntries(zip).toSorted();
+  const expected = expectedFiles.toSorted();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`Packaged ZIP contents differ from expected files.\nExpected: ${expected.join(', ')}\nActual: ${actual.join(', ')}`);
+  }
+}
+
 const files = [...new Set(packageRoots.flatMap(listPackageFiles))]
   .map((file) => relative(root, join(root, file)).replaceAll('\\', '/'))
   .sort((a, b) => a.localeCompare(b));
 
 mkdirSync(distDir, { recursive: true });
-writeFileSync(outputPath, createZip(files));
+const zip = createZip(files);
+verifyZipEntries(zip, files);
+writeFileSync(outputPath, zip);
 
 console.log(`Created ${relative(root, outputPath)} with ${files.length} files.`);

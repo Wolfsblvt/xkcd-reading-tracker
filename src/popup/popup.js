@@ -566,7 +566,10 @@ async function applyBulk(input, read) {
 
   await storageService.updateManyComicStates(parsed.ids, { read });
   await refresh();
-  showMessage(`${read ? 'Marked read' : 'Marked unread'}: ${parsed.ids.length} comic${parsed.ids.length === 1 ? '' : 's'}.`);
+  const skipped = parsed.errors.length > 0
+    ? ` Skipped ${parsed.errors.length} invalid or unavailable entr${parsed.errors.length === 1 ? 'y' : 'ies'}.`
+    : '';
+  showMessage(`${read ? 'Marked read' : 'Marked unread'}: ${parsed.ids.length} comic${parsed.ids.length === 1 ? '' : 's'}.${skipped}`);
 }
 
 function renderLinks() {
