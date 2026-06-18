@@ -1,4 +1,4 @@
-import { ALT_TEXT_MODES, BROWSE_MODES, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES } from '../shared/constants.js';
+import { ALT_TEXT_MODES, BROWSE_MODES, KEYBOARD_SHORTCUTS, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES } from '../shared/constants.js';
 import { calculateNavigation, getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
 import { calculateProgress, getComicState, isValidComicId } from '../shared/comic-state.js';
 import { formatCompactProgressSummary } from '../shared/progress-format.js';
@@ -417,6 +417,113 @@ async function setBrowseMode(mode) {
   browseMode = mode;
   await sendRuntimeMessage({ type: 'xrt:set-tab-browse-mode', mode });
   render();
+}
+
+/**
+ * @param {EventTarget | null} target
+ * @returns {boolean}
+ */
+function isEditableShortcutTarget(target) {
+  return target instanceof HTMLElement
+    && Boolean(target.closest('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]'));
+}
+
+async function toggleReadShortcut() {
+  const state = getComicState(snapshot.comics, currentComic.id);
+  cancelAutoReadTimer();
+  snapshot = await storageService.updateComicState(currentComic.id, { read: !state.read });
+  if (!state.read) {
+    await sendRuntimeMessage({ type: 'xrt:update-badge' });
+  }
+  render();
+}
+
+async function toggleFavoriteShortcut() {
+  const state = getComicState(snapshot.comics, currentComic.id);
+  cancelAutoReadTimer();
+  snapshot = await storageService.updateComicState(currentComic.id, { favorite: !state.favorite });
+  render();
+}
+
+async function setContinueShortcut() {
+  const state = getComicState(snapshot.comics, currentComic.id);
+  if (state.read) {
+    showMessage('Read comics cannot be set as the continue point.', 'info');
+    return;
+  }
+  if (snapshot.meta.continuePoint === currentComic.id) {
+    showMessage(`Comic #${currentComic.id} is already the continue point.`, 'info');
+    return;
+  }
+
+  cancelAutoReadTimer();
+  await storageService.setContinuePoint(currentComic.id);
+  await refreshFromStorage();
+  showMessage(`Continue point set to #${currentComic.id}.`);
+}
+
+/**
+ * @param {'previous' | 'next'} role
+ */
+function navigateShortcut(role) {
+  const nav = calculateNavigation({
+    mode: browseMode,
+    currentId: currentComic.id,
+    state: snapshot.comics,
+    latestComicId: snapshot.meta.latestKnownComicId,
+  });
+  const targetId = nav[role];
+  if (!targetId || targetId === currentComic.id) {
+    showMessage(`No ${role} ${browseMode} comic available.`, 'info');
+    return;
+  }
+
+  window.location.assign(getComicUrl(targetId));
+}
+
+function openExplainShortcut() {
+  window.open(getExplainXkcdUrl(currentComic.id), '_blank', 'noopener,noreferrer');
+}
+
+async function handleKeyboardShortcut(event) {
+  if (!snapshot?.settings.keyboardShortcuts.enabled || !currentComic) {
+    return;
+  }
+  if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || isEditableShortcutTarget(event.target)) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+  const shortcut = Object.entries(KEYBOARD_SHORTCUTS).find(([, descriptor]) => descriptor.key === key)?.[0];
+  if (!shortcut) {
+    return;
+  }
+
+  event.preventDefault();
+  try {
+    if (shortcut === 'TOGGLE_READ') {
+      await toggleReadShortcut();
+    } else if (shortcut === 'TOGGLE_FAVORITE') {
+      await toggleFavoriteShortcut();
+    } else if (shortcut === 'SET_CONTINUE') {
+      await setContinueShortcut();
+    } else if (shortcut === 'PREVIOUS') {
+      navigateShortcut('previous');
+    } else if (shortcut === 'NEXT') {
+      navigateShortcut('next');
+    } else if (shortcut === 'EXPLAIN') {
+      openExplainShortcut();
+    }
+  } catch (error) {
+    showMessage(error instanceof Error ? error.message : String(error), 'error');
+    logNonFatal(error);
+  }
+}
+
+function addKeyboardHandlers() {
+  document.addEventListener('keydown', (event) => {
+    handleKeyboardShortcut(event).catch(logNonFatal);
+  });
 }
 
 function renderModeControls() {
@@ -1010,6 +1117,7 @@ export async function initXkcdTracker() {
   await ensureLatestKnown(currentComic.id);
   await loadBrowseMode();
   addMessageHandlers();
+  addKeyboardHandlers();
   await reportComicPageDetected();
 
   if (snapshot?.meta.lastNewComicId && currentComic.id >= snapshot.meta.lastNewComicId) {

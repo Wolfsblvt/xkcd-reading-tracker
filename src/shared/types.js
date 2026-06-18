@@ -33,6 +33,7 @@
  * @property {RatingDisplayMode} ratingDisplay
  * @property {ProgressDisplayMode} progressDisplay
  * @property {{ defaultBrowseMode: BrowseMode, showExplainLink: boolean, updateBothNavBars: boolean, showPageNavActions: boolean, useXkcdStyleLabels: boolean }} navigation
+ * @property {{ enabled: boolean }} keyboardShortcuts
  * @property {{ enabled: boolean, checkEveryMinutes: number }} badge
  * @property {{ theme: AppearanceTheme }} appearance
  */

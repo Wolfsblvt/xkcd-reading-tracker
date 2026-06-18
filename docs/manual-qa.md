@@ -24,10 +24,12 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 - Confirm read/favorite nav-bar buttons work when enabled.
 - Disable read/favorite nav-bar buttons in settings and confirm xkcd nav bars stop receiving them.
 - Confirm filtered navigation works in all/unread/favorites modes.
+- Enable keyboard shortcuts and confirm `R`, `F`, `C`, `P`, `N`, and `E` work on comic pages.
+- Confirm keyboard shortcuts do not trigger while focus is inside text inputs or other editable fields.
 
 ## Popup
 
-- Open the popup on an xkcd comic tab and confirm current comic title, controls, rating, progress, continue link, latest known comic, and unread preview render.
+- Open the popup on an xkcd comic tab and confirm current comic title, controls, rating, progress, continue link, latest known comic, and dashboard links render.
 - Open the popup on a non-xkcd tab and confirm it still renders without current-tab controls.
 - Confirm popup links to dashboard sections land on the correct sections.
 - Confirm popup styling follows xkcd/dark-mode styling where possible.
@@ -35,12 +37,14 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 ## Dashboard
 
 - Run first-time setup from the dashboard and from the popup nudge.
-- Confirm overview progress, continue link title, favorites library, unread ranges, settings, data tools, and diagnostics render.
+- Confirm overview progress, continue link title, statistics, favorites library, unread ranges, settings, data tools, and diagnostics render.
 - Search, sort, filter, page through, rate, mark read/unread, unfavorite, and randomly open favorites.
+- Export filtered favorites as CSV and Markdown.
 - Fetch missing favorite metadata and confirm titles/thumbnails appear.
 - Use bulk marking with `1 - 3`, `1-3`, `1..3`, and invalid/reversed ranges.
 - Confirm settings autosave without jumping to the top of the page.
 - Confirm light, dark, and system dashboard appearance.
+- Copy the diagnostics support snapshot and confirm it does not include the full comic-state map.
 
 ## Storage And Data
 

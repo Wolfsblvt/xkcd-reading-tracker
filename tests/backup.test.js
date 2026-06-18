@@ -71,6 +71,9 @@ test('migration normalizes malformed stored settings', () => {
       navigation: {
         showExplainLink: 'true',
       },
+      keyboardShortcuts: {
+        enabled: 'true',
+      },
     },
   });
 
@@ -78,4 +81,5 @@ test('migration normalizes malformed stored settings', () => {
   assert.equal(migrated.updates['xrt:settings'].autoMarkRead.enabled, false);
   assert.equal(migrated.updates['xrt:settings'].autoMarkRead.delaySeconds, 7);
   assert.equal(migrated.updates['xrt:settings'].navigation.showExplainLink, true);
+  assert.equal(migrated.updates['xrt:settings'].keyboardShortcuts.enabled, false);
 });

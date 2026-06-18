@@ -44,6 +44,39 @@ export const APPEARANCE_THEMES = Object.freeze({
   DARK: 'dark',
 });
 
+export const KEYBOARD_SHORTCUTS = Object.freeze({
+  TOGGLE_READ: Object.freeze({
+    key: 'r',
+    label: 'R',
+    description: 'Toggle read/unread',
+  }),
+  TOGGLE_FAVORITE: Object.freeze({
+    key: 'f',
+    label: 'F',
+    description: 'Toggle favorite',
+  }),
+  SET_CONTINUE: Object.freeze({
+    key: 'c',
+    label: 'C',
+    description: 'Set continue here',
+  }),
+  PREVIOUS: Object.freeze({
+    key: 'p',
+    label: 'P',
+    description: 'Previous comic',
+  }),
+  NEXT: Object.freeze({
+    key: 'n',
+    label: 'N',
+    description: 'Next comic',
+  }),
+  EXPLAIN: Object.freeze({
+    key: 'e',
+    label: 'E',
+    description: 'Open Explain xkcd',
+  }),
+});
+
 export const LATEST_COMIC_ALARM = 'xrt:latest-comic-check';
 export const DEFAULT_LATEST_CHECK_MINUTES = 360;
 

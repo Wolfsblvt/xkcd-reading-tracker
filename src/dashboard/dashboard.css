@@ -440,6 +440,36 @@ button.xrt-rating-clear:disabled {
   width: 84px;
 }
 
+.shortcut-setting {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  justify-content: flex-end;
+  color: var(--xrt-muted);
+}
+
+.shortcut-item {
+  white-space: nowrap;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 2ch;
+  padding: 1px 4px;
+  border: 1px solid var(--xrt-muted);
+  background: var(--xrt-panel);
+  color: var(--xrt-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+}
+
 .muted {
   color: var(--xrt-muted);
 }
@@ -480,6 +510,14 @@ progress {
   }
 
   .inline-field {
+    justify-content: flex-start;
+  }
+
+  .shortcut-setting {
+    justify-items: start;
+  }
+
+  .shortcut-list {
     justify-content: flex-start;
   }
 

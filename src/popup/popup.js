@@ -1,10 +1,9 @@
 import { RATING_DISPLAY_MODES } from '../shared/constants.js';
-import { calculateProgress, getComicState, getUnreadComicIds, isValidComicId } from '../shared/comic-state.js';
+import { calculateProgress, getComicState, isValidComicId } from '../shared/comic-state.js';
 import { getComicUrl } from '../shared/navigation.js';
 import { createOnboardingPlan, ONBOARDING_MODES, shouldSuggestOnboarding } from '../shared/onboarding.js';
 import { formatProgressSummary } from '../shared/progress-format.js';
 import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
-import { getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
 import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
 
@@ -488,90 +487,6 @@ function renderRatingControl(comicId, rating) {
   return wrapper;
 }
 
-function renderUnreadPreview() {
-  const section = element('section', { className: 'section', children: [element('h2', { text: 'Unread' })] });
-  const ranges = getUnreadRangesFromIds(getUnreadComicIds(snapshot.comics, snapshot.meta.latestKnownComicId));
-  if (ranges.length === 0) {
-    section.append(element('p', { className: 'muted', text: 'No unread comics in the known range.' }));
-    return section;
-  }
-
-  const rangeList = element('div', { className: 'range-list' });
-  for (const range of ranges.slice(0, 4)) {
-    const item = element('span', { className: 'range-item' });
-    item.append(
-      element('a', {
-        text: String(range.start),
-        attrs: {
-          href: getComicUrl(range.start),
-          target: '_blank',
-          rel: 'noreferrer',
-          title: `Open unread range start #${range.start}`,
-        },
-      })
-    );
-    if (range.start !== range.end) {
-      item.append(
-        document.createTextNode('-'),
-        element('a', {
-          text: String(range.end),
-          attrs: {
-            href: getComicUrl(range.end),
-            target: '_blank',
-            rel: 'noreferrer',
-            title: `Open unread range end #${range.end}`,
-          },
-        })
-      );
-    }
-    item.append(element('span', { className: 'muted', text: `(${range.end - range.start + 1})` }));
-    rangeList.append(item);
-  }
-  if (ranges.length > 4) {
-    rangeList.append(element('span', { className: 'muted', text: '...' }));
-  }
-  section.append(rangeList);
-  const input = /** @type {HTMLInputElement} */ (element('input', {
-    attrs: {
-      type: 'text',
-      placeholder: '1-10, 42, 100..120',
-      'aria-label': 'Comic numbers or ranges',
-    },
-  }));
-  section.append(element('div', {
-    className: 'row',
-    children: [
-      input,
-      button('Mark read', async () => applyBulk(input.value, true), {
-        title: 'Mark the entered comic numbers or ranges as read',
-      }),
-      button('Mark unread', async () => applyBulk(input.value, false), {
-        title: 'Mark the entered comic numbers or ranges as unread',
-      }),
-    ],
-  }));
-  return section;
-}
-
-/**
- * @param {string} input
- * @param {boolean} read
- */
-async function applyBulk(input, read) {
-  const parsed = parseComicRangeInput(input, { latestComicId: snapshot.meta.latestKnownComicId });
-  if (parsed.errors.length > 0 && parsed.ids.length === 0) {
-    showMessage(parsed.errors[0], true);
-    return;
-  }
-
-  await storageService.updateManyComicStates(parsed.ids, { read });
-  await refresh();
-  const skipped = parsed.errors.length > 0
-    ? ` Skipped ${parsed.errors.length} invalid or unavailable entr${parsed.errors.length === 1 ? 'y' : 'ies'}.`
-    : '';
-  showMessage(`${read ? 'Marked read' : 'Marked unread'}: ${parsed.ids.length} comic${parsed.ids.length === 1 ? '' : 's'}.${skipped}`);
-}
-
 function renderLinks() {
   const section = element('section', { className: 'section' });
   section.append(element('div', {
@@ -602,7 +517,6 @@ function render() {
     renderContinueSection(),
     renderNewComicSection(),
     renderActiveComicSection(),
-    renderUnreadPreview(),
     renderLinks(),
   ];
   app.replaceChildren(...sections);

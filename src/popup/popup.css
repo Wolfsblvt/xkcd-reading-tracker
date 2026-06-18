@@ -106,9 +106,7 @@ a:focus-visible {
   text-decoration: underline;
 }
 
-button,
-input,
-select {
+button {
   color: inherit;
   background: var(--xrt-bg);
   font: inherit;
@@ -150,13 +148,6 @@ button:disabled {
   opacity: 0.65;
 }
 
-input,
-select {
-  min-width: 0;
-  border: 1px solid var(--xrt-muted);
-  padding: 3px 5px;
-}
-
 .section {
   margin-top: 8px;
   padding-top: 8px;
@@ -180,24 +171,6 @@ select {
   align-items: center;
   justify-content: center;
   margin-top: 6px;
-}
-
-.row input {
-  flex: 1 1 140px;
-}
-
-.range-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.range-item {
-  display: inline-flex;
-  gap: 3px;
-  align-items: center;
-  padding: 3px 0;
 }
 
 .latest-comic-link {

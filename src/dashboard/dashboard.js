@@ -1,4 +1,4 @@
-import { ALT_TEXT_MODES, APPEARANCE_THEMES, BROWSE_MODES, META_KEY, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES, SESSION_FAVORITES_LIBRARY_KEY, SETTINGS_KEY } from '../shared/constants.js';
+import { ALT_TEXT_MODES, APPEARANCE_THEMES, BROWSE_MODES, KEYBOARD_SHORTCUTS, META_KEY, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES, SESSION_FAVORITES_LIBRARY_KEY, SETTINGS_KEY } from '../shared/constants.js';
 import { calculateProgress, getFavoriteComicIds, getUnreadComicIds } from '../shared/comic-state.js';
 import {
   DEFAULT_FAVORITE_PAGE_SIZE,
@@ -297,6 +297,22 @@ function settingItem(title, description, control) {
     element('div', { className: 'setting-control', children: [control] })
   );
   return item;
+}
+
+function renderShortcutSummary() {
+  const wrapper = element('span', { className: 'shortcut-list' });
+  for (const shortcut of Object.values(KEYBOARD_SHORTCUTS)) {
+    wrapper.append(
+      element('span', {
+        className: 'shortcut-item',
+        children: [
+          element('kbd', { text: shortcut.label }),
+          document.createTextNode(` ${shortcut.description}`),
+        ],
+      })
+    );
+  }
+  return wrapper;
 }
 
 function renderOverview() {
@@ -1033,6 +1049,8 @@ function renderSettings() {
   showPageNavActions.checked = settings.navigation.showPageNavActions;
   const useXkcdStyleLabels = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   useXkcdStyleLabels.checked = settings.navigation.useXkcdStyleLabels;
+  const keyboardShortcutsEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
+  keyboardShortcutsEnabled.checked = settings.keyboardShortcuts.enabled;
   const badgeEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   badgeEnabled.checked = settings.badge.enabled;
   const checkEveryMinutes = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'number', min: '30', max: '10080', value: String(settings.badge.checkEveryMinutes) } }));
@@ -1070,6 +1088,9 @@ function renderSettings() {
         showPageNavActions: showPageNavActions.checked,
         useXkcdStyleLabels: useXkcdStyleLabels.checked,
       },
+      keyboardShortcuts: {
+        enabled: keyboardShortcutsEnabled.checked,
+      },
       badge: {
         enabled: badgeEnabled.checked,
         checkEveryMinutes: Number(checkEveryMinutes.value),
@@ -1100,6 +1121,7 @@ function renderSettings() {
     updateBothNavBars,
     showPageNavActions,
     useXkcdStyleLabels,
+    keyboardShortcutsEnabled,
     badgeEnabled,
     checkEveryMinutes,
     theme,
@@ -1142,6 +1164,16 @@ function renderSettings() {
         settingItem('xkcd-style labels', 'Uses Got it, Neat, and Huh? instead of generic labels on comic pages.', element('span', {
           className: 'inline-field',
           children: [useXkcdStyleLabels, document.createTextNode('Use playful labels')],
+        })),
+        settingItem('Keyboard shortcuts', 'Opt-in shortcuts on xkcd comic pages.', element('span', {
+          className: 'shortcut-setting',
+          children: [
+            element('span', {
+              className: 'inline-field',
+              children: [keyboardShortcutsEnabled, document.createTextNode('Enabled')],
+            }),
+            renderShortcutSummary(),
+          ],
         })),
       ]),
       settingGroup('New Comics', [

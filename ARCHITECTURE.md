@@ -8,11 +8,11 @@ The extension augments xkcd rather than replacing it. The xkcd page remains the 
 
 - `manifest.json` declares the MV3 service worker, static xkcd content script, popup, options/dashboard page, host access limited to xkcd, and raster icons.
 - `src/content/content.js` is a tiny classic content-script bridge. Static manifest content scripts are not module scripts, so it dynamically imports `src/content/page.js`.
-- `src/content/page.js` owns xkcd page integration: comic detection, injected controls, active-view timers, per-tab browse mode, filtered navigation, toolbar-icon detection signals, and storage refreshes.
+- `src/content/page.js` owns xkcd page integration: comic detection, injected controls, active-view timers, per-tab browse mode, filtered navigation, optional keyboard shortcuts, toolbar-icon detection signals, and storage refreshes.
 - `src/popup` owns the compact toolbar UI.
 - `src/dashboard` owns the full management/options page.
 - `src/background/service-worker.js` owns installation setup, latest-comic checks, badge state, toolbar action icon state, and per-tab browse-mode storage.
-- `src/shared` contains pure domain logic for validity rules, state normalization, progress, progress formatting, rating-control descriptors, onboarding planning, ranges, navigation, favorites-library filtering, settings, and backup validation.
+- `src/shared` contains pure domain logic for validity rules, state normalization, progress, progress formatting, rating-control descriptors, onboarding planning, ranges, navigation, favorites-library filtering/export, statistics, settings, and backup validation.
 - `src/storage` is the persistence boundary around Chrome storage and xkcd metadata caching.
 - `tests` covers the pure domain logic, backup validation, migration bootstrap, and manifest smoke checks with Node's built-in test runner.
 
@@ -29,6 +29,7 @@ User-created data is synchronized with `chrome.storage.sync`:
 - latest-comic acknowledgement state
 - onboarding completion timestamp
 - extension-page appearance preference
+- keyboard shortcut preference
 
 Public xkcd metadata is cached in `chrome.storage.local` because it is rebuildable and should not consume sync quota. The cache stores metadata fetched from xkcd `info.0.json` endpoints only when needed, including title and image URL data used by the favorites library.
 
@@ -109,6 +110,8 @@ Automatic read marking is a one-shot page-load timer. It does not restart from o
 
 Read/favorite controls can also be injected into the xkcd navigation bars, near the controls readers use repeatedly. This is enabled by default but can be disabled for users who prefer the original nav bars to stop moving after extension injection. The injected navigation labels default to xkcd-flavored wording (`Got it`, `Neat`, `Huh?`) and can be changed to generic labels (`Read`, `Fav`, `Explain`). The full tracker panel keeps the obvious `Read` and `Fav` actions for discoverability and for the rating control.
 
+Keyboard shortcuts are opt-in and only active on xkcd comic pages. They ignore form fields, contenteditable elements, and browser modifier shortcuts. The first fixed shortcut set covers read/unread, favorite, continue point, previous/next navigation, and Explain xkcd.
+
 ## Navigation Filtering
 
 Browse modes are:
@@ -125,9 +128,11 @@ The current mode is per tab/session, with synchronized settings only providing t
 
 ## Popup And Dashboard
 
-The popup reads storage directly through the shared storage service and asks the active tab's content script for current-comic context and page styling when available. It remains compact, follows xkcd's native small-caps/link/button styling, and avoids full catalog management. Its current-comic controls use the same shared rating descriptors as the xkcd page, comic links show cached titles when available, the unread preview only shows range links, and the new-comic block also exposes the latest known xkcd number. If onboarding has not been completed, the popup shows a setup nudge with simple one-click paths and a link to the full dashboard setup flow.
+The popup reads storage directly through the shared storage service and asks the active tab's content script for current-comic context and page styling when available. It remains compact, follows xkcd's native small-caps/link/button styling, and avoids full catalog management. Its current-comic controls use the same shared rating descriptors as the xkcd page, comic links show cached titles when available, and the new-comic block also exposes the latest known xkcd number. Unread ranges and bulk marking stay on the dashboard because the popup is meant for quick current-context actions. If onboarding has not been completed, the popup shows a setup nudge with simple one-click paths and a link to the full dashboard setup flow.
 
-The dashboard is the full management surface. It includes onboarding, overview, a searchable favorites library, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. The onboarding flow can start from the beginning, mark comics read through a chosen number, or mark the user caught up; bulk actions require confirmation and then store `onboardingCompletedAt`. The overview shows titled comic links when metadata is available and supports direct hash navigation into sections after async render. The favorites library can search cached titles or comic numbers, filter rated/unrated favorites, sort by rating/number/title, page through results, show lazy remote thumbnails from xkcd image URLs, edit ratings inline with the shared rating control, toggle read state, remove favorites, open a random visible favorite, and request missing xkcd metadata. Settings autosave on change, avoid self-triggered full-page refreshes, and are grouped vertically by category. Navigation settings separate filtered-navigation behavior from optional read/favorite button injection. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
+The dashboard is the full management surface. It includes onboarding, overview, statistics, a searchable favorites library, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. The onboarding flow can start from the beginning, mark comics read through a chosen number, or mark the user caught up; bulk actions require confirmation and then store `onboardingCompletedAt`. The overview shows titled comic links when metadata is available and supports direct hash navigation into sections after async render. Statistics summarize progress, favorites, ratings, averages, and rating distribution without adding more persisted state. The favorites library can search cached titles or comic numbers, filter rated/unrated favorites, sort by rating/number/title, page through results, show lazy remote thumbnails from xkcd image URLs, edit ratings inline with the shared rating control, toggle read state, remove favorites, open a random visible favorite, export the current filtered set as CSV or Markdown, and request missing xkcd metadata. Settings autosave on change, avoid self-triggered full-page refreshes, and are grouped vertically by category. Navigation settings separate filtered-navigation behavior from optional read/favorite button injection. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
+
+Diagnostics show aggregate state and storage information. The support snapshot intentionally includes metadata, settings, aggregate statistics, and storage usage, but not the full sparse comic-state map.
 
 The dashboard supports light, dark, and system appearance. The popup and content-script UI do not use that setting because they should visually follow the xkcd page; the popup uses a page-style snapshot from the active xkcd tab when possible and falls back to system dark/light colors.
 
@@ -180,7 +185,9 @@ Automated tests cover logic that is cheap and valuable to verify outside Chrome:
 - progress calculation,
 - unread range calculation,
 - favorite library search/filter/sort behavior,
+- favorite library export formatting,
 - favorite library pagination and session preference normalization,
+- aggregate statistics,
 - filtered navigation,
 - continue-point advancement,
 - bulk range parsing,

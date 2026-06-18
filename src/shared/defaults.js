@@ -26,6 +26,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
     showPageNavActions: true,
     useXkcdStyleLabels: true,
   }),
+  keyboardShortcuts: Object.freeze({
+    enabled: false,
+  }),
   badge: Object.freeze({
     enabled: true,
     checkEveryMinutes: DEFAULT_LATEST_CHECK_MINUTES,
@@ -45,6 +48,7 @@ export function createDefaultSettings() {
     ratingDisplay: DEFAULT_SETTINGS.ratingDisplay,
     progressDisplay: DEFAULT_SETTINGS.progressDisplay,
     navigation: { ...DEFAULT_SETTINGS.navigation },
+    keyboardShortcuts: { ...DEFAULT_SETTINGS.keyboardShortcuts },
     badge: { ...DEFAULT_SETTINGS.badge },
     appearance: { ...DEFAULT_SETTINGS.appearance },
   };
@@ -113,6 +117,7 @@ export function normalizeSettings(value) {
   const autoMarkRead = raw.autoMarkRead && typeof raw.autoMarkRead === 'object' ? raw.autoMarkRead : {};
   const altText = raw.altText && typeof raw.altText === 'object' ? raw.altText : {};
   const navigation = raw.navigation && typeof raw.navigation === 'object' ? raw.navigation : {};
+  const keyboardShortcuts = raw.keyboardShortcuts && typeof raw.keyboardShortcuts === 'object' ? raw.keyboardShortcuts : {};
   const badge = raw.badge && typeof raw.badge === 'object' ? raw.badge : {};
 
   return {
@@ -132,6 +137,9 @@ export function normalizeSettings(value) {
       updateBothNavBars: normalizeBoolean(navigation.updateBothNavBars, defaults.navigation.updateBothNavBars),
       showPageNavActions: normalizeBoolean(navigation.showPageNavActions, defaults.navigation.showPageNavActions),
       useXkcdStyleLabels: normalizeBoolean(navigation.useXkcdStyleLabels, defaults.navigation.useXkcdStyleLabels),
+    },
+    keyboardShortcuts: {
+      enabled: normalizeBoolean(keyboardShortcuts.enabled, defaults.keyboardShortcuts.enabled),
     },
     badge: {
       enabled: normalizeBoolean(badge.enabled, defaults.badge.enabled),
