@@ -6,6 +6,8 @@ import {
   FAVORITE_RATING_FILTERS,
   FAVORITE_SORT_MODES,
   buildFavoriteRows,
+  exportFavoriteRowsAsCsv,
+  exportFavoriteRowsAsMarkdown,
   filterFavoriteRows,
   getRandomFavoriteRow,
   normalizeFavoriteLibraryPreferences,
@@ -144,4 +146,35 @@ test('favorite library session preferences reject unsupported values', () => {
     sortMode: FAVORITE_SORT_MODES.RATING_DESC,
     pageSize: DEFAULT_FAVORITE_PAGE_SIZE,
   });
+});
+
+test('favorite library exports rows as csv and markdown', () => {
+  const rows = [
+    {
+      id: 2,
+      read: true,
+      rating: 8,
+      title: 'Petit, Trees',
+      safeTitle: 'Petit, Trees',
+      imageUrl: 'https://imgs.xkcd.com/comics/petit_trees.png',
+      metadataCached: true,
+    },
+    {
+      id: 4,
+      read: false,
+      rating: null,
+      title: 'A | B',
+      safeTitle: 'A | B',
+      imageUrl: null,
+      metadataCached: true,
+    },
+  ];
+
+  const csv = exportFavoriteRowsAsCsv(rows);
+  assert.equal(csv.includes('Comic,Title,Rating,Read,xkcd URL,Explain xkcd URL,Image URL'), true);
+  assert.equal(csv.includes('2,"Petit, Trees",8,yes,https://xkcd.com/2/,https://www.explainxkcd.com/wiki/index.php/2,https://imgs.xkcd.com/comics/petit_trees.png'), true);
+
+  const markdown = exportFavoriteRowsAsMarkdown(rows);
+  assert.equal(markdown.includes('| [#2](https://xkcd.com/2/) | Petit, Trees | 8/10 | yes | [xkcd](https://xkcd.com/2/) / [Explain](https://www.explainxkcd.com/wiki/index.php/2) |'), true);
+  assert.equal(markdown.includes('A \\| B'), true);
 });

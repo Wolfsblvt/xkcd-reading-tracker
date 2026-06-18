@@ -6,6 +6,8 @@ import {
   FAVORITE_RATING_FILTERS,
   FAVORITE_SORT_MODES,
   buildFavoriteRows,
+  exportFavoriteRowsAsCsv,
+  exportFavoriteRowsAsMarkdown,
   filterFavoriteRows,
   getRandomFavoriteRow,
   normalizeFavoriteLibraryPreferences,
@@ -17,6 +19,7 @@ import { createOnboardingPlan, ONBOARDING_MODES, shouldSuggestOnboarding } from 
 import { formatProgressSummary } from '../shared/progress-format.js';
 import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
 import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
+import { calculateTrackerStatistics } from '../shared/statistics.js';
 import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
 
@@ -107,7 +110,16 @@ function logNonFatal(error) {
  * @param {object} value
  */
 function downloadJson(name, value) {
-  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+  downloadText(name, JSON.stringify(value, null, 2), 'application/json');
+}
+
+/**
+ * @param {string} name
+ * @param {string} text
+ * @param {string} type
+ */
+function downloadText(name, text, type) {
+  const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   const anchor = element('a', {
     attrs: {
@@ -330,6 +342,61 @@ function renderOverview() {
   return section;
 }
 
+/**
+ * @param {number | null} value
+ * @returns {string}
+ */
+function formatStatRating(value) {
+  return value === null ? '-' : `${value}/10`;
+}
+
+/**
+ * @param {string} label
+ * @param {string} value
+ * @param {string} [detail]
+ * @returns {HTMLElement}
+ */
+function statCard(label, value, detail = '') {
+  return element('div', {
+    className: 'stat-card',
+    children: [
+      element('span', { className: 'stat-label', text: label }),
+      element('strong', { text: value }),
+      element('span', { className: 'stat-detail', text: detail }),
+    ],
+  });
+}
+
+function renderStatistics() {
+  const stats = calculateTrackerStatistics({
+    comics: snapshot.comics,
+    latestComicId: snapshot.meta.latestKnownComicId,
+  });
+  const section = element('section', { attrs: { id: 'statistics' } });
+  section.append(element('h2', { text: 'Statistics' }));
+  section.append(element('div', {
+    className: 'stats-grid',
+    children: [
+      statCard('Progress', `${stats.percent}%`, `${stats.read} read, ${stats.unread} unread`),
+      statCard('Favorites', String(stats.favorite), `${stats.unreadFavorites} unread favorite${stats.unreadFavorites === 1 ? '' : 's'}`),
+      statCard('Rated comics', String(stats.rated), `${stats.unrated} unrated`),
+      statCard('Average rating', formatStatRating(stats.averageRating), `${stats.tenOutOfTen} perfect 10${stats.tenOutOfTen === 1 ? '' : 's'}`),
+      statCard('Favorite average', formatStatRating(stats.averageFavoriteRating), `${stats.ratedFavorites} rated favorite${stats.ratedFavorites === 1 ? '' : 's'}`),
+      statCard('Rating range', stats.highestRating === null ? '-' : `${stats.lowestRating}-${stats.highestRating}`, 'lowest to highest'),
+    ],
+  }));
+
+  const distributionRows = Object.entries(stats.ratingDistribution)
+    .filter(([, count]) => count > 0)
+    .map(([rating, count]) => `${rating}: ${count}`)
+    .join(' · ');
+  section.append(element('p', {
+    className: 'muted rating-distribution',
+    text: distributionRows ? `Rating distribution: ${distributionRows}` : 'No ratings yet.',
+  }));
+  return section;
+}
+
 function renderOnboarding() {
   const section = element('section', { className: 'onboarding-callout', attrs: { id: 'onboarding' } });
   section.append(element('h2', { text: 'Setup' }));
@@ -477,6 +544,20 @@ function renderFavorites() {
   const fetchButton = button('Fetch missing titles', fetchMissingFavoriteTitles, {
     title: 'Fetch missing titles for favorite comics from xkcd metadata',
   });
+  const exportCsvButton = button('Export CSV', () => {
+    if (filteredRows.length === 0) {
+      showMessage('No favorites match the current filters.', true);
+      return;
+    }
+    downloadText(`xkcd-favorites-${new Date().toISOString().slice(0, 10)}.csv`, exportFavoriteRowsAsCsv(filteredRows), 'text/csv');
+  }, { title: 'Export the currently filtered favorites as CSV' });
+  const exportMarkdownButton = button('Export Markdown', () => {
+    if (filteredRows.length === 0) {
+      showMessage('No favorites match the current filters.', true);
+      return;
+    }
+    downloadText(`xkcd-favorites-${new Date().toISOString().slice(0, 10)}.md`, exportFavoriteRowsAsMarkdown(filteredRows), 'text/markdown');
+  }, { title: 'Export the currently filtered favorites as a Markdown table' });
 
   const updateResults = () => {
     const rows = buildFavoriteRows({
@@ -495,6 +576,8 @@ function renderFavorites() {
     favoriteLibraryState.page = page.currentPage;
     const missingCount = rows.filter((row) => !row.metadataCached).length;
     randomButton.disabled = filteredRows.length === 0;
+    exportCsvButton.disabled = filteredRows.length === 0;
+    exportMarkdownButton.disabled = filteredRows.length === 0;
     fetchButton.disabled = missingCount === 0 || favoriteMetadataRefreshPending;
     fetchButton.title = missingCount === 0
       ? 'All favorite titles are cached'
@@ -538,7 +621,7 @@ function renderFavorites() {
       field('Page size', pageSize),
       element('div', {
         className: 'row favorite-library-actions',
-        children: [randomButton, fetchButton],
+        children: [randomButton, exportCsvButton, exportMarkdownButton, fetchButton],
       }),
     ],
   }));
@@ -1180,13 +1263,22 @@ async function resetData(confirmation, withBackup) {
 function renderDiagnostics() {
   const section = element('section', { attrs: { id: 'diagnostics' } });
   section.append(element('h2', { text: 'Diagnostics' }));
+  const stats = calculateTrackerStatistics({
+    comics: snapshot.comics,
+    latestComicId: snapshot.meta.latestKnownComicId,
+  });
   const rows = [
+    ['Extension version', chrome.runtime.getManifest().version],
     ['Schema version', String(snapshot.meta.schemaVersion)],
     ['Latest known comic', snapshot.meta.latestKnownComicId ? `#${snapshot.meta.latestKnownComicId}` : 'Unknown'],
     ['Latest checked', snapshot.meta.latestCheckedAt ?? 'Never'],
     ['Acknowledged latest', snapshot.meta.acknowledgedLatestComicId ? `#${snapshot.meta.acknowledgedLatestComicId}` : 'None'],
     ['Last new comic', snapshot.meta.lastNewComicId ? `#${snapshot.meta.lastNewComicId}` : 'None'],
     ['Continue point', snapshot.meta.continuePoint ? `#${snapshot.meta.continuePoint}` : 'None'],
+    ['Known valid comics', String(stats.total)],
+    ['Read / unread', `${stats.read} / ${stats.unread}`],
+    ['Favorites', String(stats.favorite)],
+    ['Rated comics', String(stats.rated)],
     ['Sync storage bytes', storageUsage?.syncBytes == null ? 'Unknown' : String(storageUsage.syncBytes)],
     ['Local storage bytes', storageUsage?.localBytes == null ? 'Unknown' : String(storageUsage.localBytes)],
     ['Extension sync keys', storageUsage ? String(storageUsage.syncKeys) : 'Unknown'],
@@ -1203,13 +1295,51 @@ function renderDiagnostics() {
   }
   table.append(body);
   section.append(table);
+  section.append(element('div', {
+    className: 'row',
+    children: [
+      button('Copy support snapshot', copyDiagnosticsSnapshot, {
+        title: 'Copy a support JSON without full comic state',
+      }),
+    ],
+  }));
   return section;
+}
+
+function buildDiagnosticsSnapshot() {
+  const stats = calculateTrackerStatistics({
+    comics: snapshot.comics,
+    latestComicId: snapshot.meta.latestKnownComicId,
+  });
+  return {
+    generatedAt: new Date().toISOString(),
+    extensionVersion: chrome.runtime.getManifest().version,
+    userAgent: navigator.userAgent,
+    meta: snapshot.meta,
+    settings: snapshot.settings,
+    statistics: stats,
+    storageUsage,
+  };
+}
+
+async function copyDiagnosticsSnapshot() {
+  const diagnostics = buildDiagnosticsSnapshot();
+  const text = JSON.stringify(diagnostics, null, 2);
+  try {
+    await navigator.clipboard.writeText(text);
+    showMessage('Support snapshot copied.');
+  } catch (error) {
+    logNonFatal(error);
+    downloadText(`xkcd-tracker-diagnostics-${new Date().toISOString().slice(0, 10)}.json`, text, 'application/json');
+    showMessage('Clipboard was unavailable, so the support snapshot was downloaded.');
+  }
 }
 
 function render() {
   const sections = [
     ...(shouldSuggestOnboarding(snapshot.meta) ? [renderOnboarding()] : []),
     renderOverview(),
+    renderStatistics(),
     renderFavorites(),
     renderUnread(),
     renderSettings(),

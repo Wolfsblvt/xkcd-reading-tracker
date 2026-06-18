@@ -194,6 +194,34 @@ th {
   font-weight: 600;
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.stat-card {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--xrt-soft-border);
+  background: var(--xrt-panel);
+}
+
+.stat-card strong {
+  font-size: 20px;
+}
+
+.stat-label,
+.stat-detail {
+  color: var(--xrt-muted);
+}
+
+.rating-distribution {
+  margin-top: 10px;
+}
+
 .onboarding-callout {
   margin-top: 12px;
   padding: 14px;

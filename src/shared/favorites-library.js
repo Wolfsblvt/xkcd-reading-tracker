@@ -1,4 +1,5 @@
 import { getComicState, getFavoriteComicIds } from './comic-state.js';
+import { getComicUrl, getExplainXkcdUrl } from './navigation.js';
 
 export const FAVORITE_RATING_FILTERS = Object.freeze({
   ALL: 'all',
@@ -232,4 +233,71 @@ export function normalizeFavoriteLibraryPreferences(raw) {
     sortMode,
     pageSize: normalizePageSize(value.pageSize),
   };
+}
+
+/**
+ * @param {string | number | boolean | null | undefined} value
+ * @returns {string}
+ */
+function csvField(value) {
+  const text = String(value ?? '');
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+/**
+ * @param {string | number | boolean | null | undefined} value
+ * @returns {string}
+ */
+function markdownCell(value) {
+  return String(value ?? '')
+    .replaceAll('\\', '\\\\')
+    .replaceAll('|', '\\|')
+    .replaceAll('\r', ' ')
+    .replaceAll('\n', ' ');
+}
+
+/**
+ * @param {FavoriteLibraryRow} row
+ * @returns {string}
+ */
+function getExportTitle(row) {
+  return row.title ?? row.safeTitle ?? '';
+}
+
+/**
+ * @param {FavoriteLibraryRow[]} rows
+ * @returns {string}
+ */
+export function exportFavoriteRowsAsCsv(rows) {
+  const header = ['Comic', 'Title', 'Rating', 'Read', 'xkcd URL', 'Explain xkcd URL', 'Image URL'];
+  const lines = [header.map(csvField).join(',')];
+  for (const row of rows) {
+    lines.push([
+      row.id,
+      getExportTitle(row),
+      row.rating ?? '',
+      row.read ? 'yes' : 'no',
+      getComicUrl(row.id),
+      getExplainXkcdUrl(row.id),
+      row.imageUrl ?? '',
+    ].map(csvField).join(','));
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+/**
+ * @param {FavoriteLibraryRow[]} rows
+ * @returns {string}
+ */
+export function exportFavoriteRowsAsMarkdown(rows) {
+  const lines = [
+    '| Comic | Title | Rating | Read | Links |',
+    '| --- | --- | --- | --- | --- |',
+  ];
+  for (const row of rows) {
+    const comic = `[#${row.id}](${getComicUrl(row.id)})`;
+    const links = `[xkcd](${getComicUrl(row.id)}) / [Explain](${getExplainXkcdUrl(row.id)})`;
+    lines.push(`| ${markdownCell(comic)} | ${markdownCell(getExportTitle(row))} | ${markdownCell(row.rating === null ? '' : `${row.rating}/10`)} | ${markdownCell(row.read ? 'yes' : 'no')} | ${markdownCell(links)} |`);
+  }
+  return `${lines.join('\n')}\n`;
 }
