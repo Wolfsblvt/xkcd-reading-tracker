@@ -31,6 +31,64 @@ function logNonFatal(error) {
 }
 
 /**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isMissingTabError(error) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /No tab with id|Invalid tab ID|The tab was closed/i.test(message);
+}
+
+/**
+ * Callback-based Chrome calls require reading runtime.lastError explicitly.
+ * @template T
+ * @param {(callback: (result: T) => void) => void} invoke
+ * @returns {Promise<T>}
+ */
+function callChromeApi(invoke) {
+  return new Promise((resolve, reject) => {
+    invoke((result) => {
+      const message = chrome.runtime.lastError?.message;
+      if (message) {
+        reject(new Error(message));
+        return;
+      }
+      resolve(result);
+    });
+  });
+}
+
+/**
+ * @param {number} tabId
+ * @param {{ path: Record<number, string>, title: string }} action
+ * @returns {Promise<boolean>}
+ */
+async function updateTabAction(tabId, action) {
+  try {
+    await Promise.all([
+      callChromeApi((callback) => chrome.action.setIcon({ tabId, path: action.path }, callback)),
+      callChromeApi((callback) => chrome.action.setTitle({ tabId, title: action.title }, callback)),
+    ]);
+    return true;
+  } catch (error) {
+    if (isMissingTabError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/**
+ * @param {number} tabId
+ * @returns {Promise<unknown>}
+ */
+function getCurrentComicFromTab(tabId) {
+  return callChromeApi((callback) => {
+    chrome.tabs.sendMessage(tabId, { type: 'xrt:get-current-comic' }, callback);
+  });
+}
+
+/**
  * @param {number} tabId
  * @returns {string}
  */
@@ -80,15 +138,13 @@ async function updateBadge() {
  * @returns {Promise<void>}
  */
 async function setMutedActionForTab(tabId, options = {}) {
-  const updates = [
-    chrome.action.setIcon({ tabId, path: ACTION_ICONS.muted }),
-    chrome.action.setTitle({ tabId, title: DEFAULT_ACTION_TITLE }),
-  ];
-  if (options.global) {
-    updates.push(chrome.action.setIcon({ path: ACTION_ICONS.muted }));
+  const updated = await updateTabAction(tabId, {
+    path: ACTION_ICONS.muted,
+    title: DEFAULT_ACTION_TITLE,
+  });
+  if (updated && options.global) {
+    await chrome.action.setIcon({ path: ACTION_ICONS.muted });
   }
-
-  await Promise.all(updates);
 }
 
 /**
@@ -98,15 +154,13 @@ async function setMutedActionForTab(tabId, options = {}) {
  * @returns {Promise<void>}
  */
 async function setComicActionForTab(tabId, comicId, options = {}) {
-  const updates = [
-    chrome.action.setIcon({ tabId, path: ACTION_ICONS.active }),
-    chrome.action.setTitle({ tabId, title: `${DEFAULT_ACTION_TITLE} - xkcd comic #${comicId} detected` }),
-  ];
-  if (options.global) {
-    updates.push(chrome.action.setIcon({ path: ACTION_ICONS.active }));
+  const updated = await updateTabAction(tabId, {
+    path: ACTION_ICONS.active,
+    title: `${DEFAULT_ACTION_TITLE} - xkcd comic #${comicId} detected`,
+  });
+  if (updated && options.global) {
+    await chrome.action.setIcon({ path: ACTION_ICONS.active });
   }
-
-  await Promise.all(updates);
 }
 
 /**
@@ -132,13 +186,16 @@ async function setComicActionForTabIfValid(tabId, comicId, options = {}) {
  */
 async function refreshActionForTab(tabId, options = {}) {
   try {
-    const response = await chrome.tabs.sendMessage(tabId, { type: 'xrt:get-current-comic' });
+    const response = await getCurrentComicFromTab(tabId);
     const comicId = coerceComicId(response?.comicId);
     if (comicId !== null) {
       await setComicActionForTabIfValid(tabId, comicId, options);
       return;
     }
-  } catch {
+  } catch (error) {
+    if (isMissingTabError(error)) {
+      return;
+    }
     // Most tabs do not have the xkcd content script. Muted is the expected state.
   }
 

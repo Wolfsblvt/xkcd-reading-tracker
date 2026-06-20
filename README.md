@@ -116,7 +116,7 @@ Chrome 120 or newer is targeted. The extension uses Manifest V3, module extensio
 
 ## Privacy Policy
 
-Reading state is stored through Chrome extension storage. Chrome may synchronize `chrome.storage.sync` data through the signed-in Google account if browser sync is enabled. The extension does not run a server, does not include analytics or tracking, and does not collect, sell, or share reading state with the developer or third-party services. Public xkcd metadata and thumbnail images may be fetched from xkcd domains.
+Reading state is stored through Chrome extension storage. Chrome may synchronize `chrome.storage.sync` data through the signed-in Google account if browser sync is enabled. The extension does not request Chrome's history permission or inspect general browser history. It only processes the active xkcd comic page, explicit tracker actions, and public xkcd metadata needed for its features. It does not run a server, include analytics, or send reading state to the developer or third-party services. Public xkcd metadata and thumbnail images may be fetched from xkcd domains.
 
 ## Known Limitations
 
