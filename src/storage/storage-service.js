@@ -11,6 +11,7 @@ import {
 import { createBackup, validateBackup } from '../shared/backup.js';
 import { createDefaultSettings, normalizeSettings } from '../shared/defaults.js';
 import {
+  areComicStatesEqual,
   calculateNextContinuePoint,
   coerceComicId,
   isValidComicId,
@@ -27,6 +28,30 @@ function nowIso() {
 }
 
 /**
+ * @param {unknown} error
+ * @returns {Error}
+ */
+function normalizeSyncWriteError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/MAX_WRITE_OPERATIONS_PER_MINUTE|write operations per minute/i.test(message)) {
+    return new Error('Chrome sync is temporarily rate-limiting changes. Wait about a minute, then try again.');
+  }
+  return error instanceof Error ? error : new Error(message);
+}
+
+/**
+ * @param {Record<string, unknown>} items
+ * @returns {Promise<void>}
+ */
+async function setSyncItems(items) {
+  try {
+    await chrome.storage.sync.set(items);
+  } catch (error) {
+    throw normalizeSyncWriteError(error);
+  }
+}
+
+/**
  * @returns {Promise<void>}
  */
 export async function ensureStorageReady() {
@@ -34,7 +59,7 @@ export async function ensureStorageReady() {
   const { updates, changed } = migrateSyncItems(stored);
 
   if (changed) {
-    await chrome.storage.sync.set(updates);
+    await setSyncItems(updates);
   }
 }
 
@@ -76,7 +101,7 @@ export async function getTrackerSnapshot() {
   if (continuePoint !== meta.continuePoint) {
     meta.continuePoint = continuePoint;
     meta.updatedAt = nowIso();
-    await chrome.storage.sync.set({ [META_KEY]: meta });
+    await setSyncItems({ [META_KEY]: meta });
   }
 
   return { meta, settings, comics };
@@ -111,7 +136,11 @@ export async function updateComicState(comicId, patch) {
   }
 
   const { key, chunk } = await getChunkForComic(comicId);
-  const nextState = mergeComicStatePatch(chunk.comics[String(comicId)], patch);
+  const currentState = chunk.comics[String(comicId)];
+  const nextState = mergeComicStatePatch(currentState, patch);
+  if (areComicStatesEqual(currentState, nextState)) {
+    return snapshot;
+  }
   if (nextState) {
     chunk.comics[String(comicId)] = nextState;
   } else {
@@ -140,7 +169,7 @@ export async function updateComicState(comicId, patch) {
     meta.acknowledgedLatestComicId = Math.max(meta.acknowledgedLatestComicId ?? 0, comicId);
   }
 
-  await chrome.storage.sync.set({
+  await setSyncItems({
     [key]: chunk,
     [META_KEY]: meta,
   });
@@ -212,7 +241,7 @@ export async function updateManyComicStates(comicIds, patch) {
   }
 
   updates[META_KEY] = meta;
-  await chrome.storage.sync.set(updates);
+  await setSyncItems(updates);
   return getTrackerSnapshot();
 }
 
@@ -226,13 +255,16 @@ export async function setContinuePoint(comicId) {
   if (normalized !== null && !isValidComicId(normalized, snapshot.meta.latestKnownComicId)) {
     throw new Error(`Comic ${normalized} is not available.`);
   }
+  if (normalized === snapshot.meta.continuePoint) {
+    return;
+  }
 
   const meta = {
     ...snapshot.meta,
     continuePoint: normalized,
     updatedAt: nowIso(),
   };
-  await chrome.storage.sync.set({ [META_KEY]: meta });
+  await setSyncItems({ [META_KEY]: meta });
 }
 
 /**
@@ -255,7 +287,13 @@ export async function acknowledgeLatestComic(comicId) {
       : snapshot.meta.lastNewComicId,
     updatedAt: nowIso(),
   };
-  await chrome.storage.sync.set({ [META_KEY]: meta });
+  if (
+    acknowledgedLatestComicId === snapshot.meta.acknowledgedLatestComicId
+    && meta.lastNewComicId === snapshot.meta.lastNewComicId
+  ) {
+    return;
+  }
+  await setSyncItems({ [META_KEY]: meta });
 }
 
 /**
@@ -270,7 +308,6 @@ export async function updateMeta(patch) {
     ...patch,
     schemaVersion: SCHEMA_VERSION,
     latestKnownComicId,
-    updatedAt: nowIso(),
   };
 
   meta.continuePoint = calculateNextContinuePoint({
@@ -279,7 +316,14 @@ export async function updateMeta(patch) {
     continuePoint: meta.continuePoint,
   });
 
-  await chrome.storage.sync.set({ [META_KEY]: meta });
+  const comparableCurrent = { ...snapshot.meta, updatedAt: null };
+  const comparableNext = { ...meta, updatedAt: null };
+  if (JSON.stringify(comparableCurrent) === JSON.stringify(comparableNext)) {
+    return snapshot.meta;
+  }
+
+  meta.updatedAt = nowIso();
+  await setSyncItems({ [META_KEY]: meta });
   return meta;
 }
 
@@ -337,7 +381,10 @@ export async function restartOnboarding() {
 export async function saveSettings(settings) {
   const normalized = normalizeSettings(settings);
   const snapshot = await getTrackerSnapshot();
-  await chrome.storage.sync.set({
+  if (JSON.stringify(normalized) === JSON.stringify(snapshot.settings)) {
+    return snapshot.settings;
+  }
+  await setSyncItems({
     [SETTINGS_KEY]: normalized,
     [META_KEY]: {
       ...snapshot.meta,
@@ -411,7 +458,7 @@ export async function importBackupReplacingData(backup) {
   updates[META_KEY] = meta;
   updates[SETTINGS_KEY] = normalizeSettings(data.settings);
 
-  await chrome.storage.sync.set(updates);
+  await setSyncItems(updates);
   const replacementChunkKeys = new Set([...chunks.keys()].map(getChunkKey));
   const removeKeys = staleChunkKeys.filter((key) => !replacementChunkKeys.has(key));
   if (removeKeys.length > 0) {

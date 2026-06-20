@@ -156,6 +156,20 @@ export function mergeComicStatePatch(current, patch) {
 }
 
 /**
+ * Compares persisted or expanded comic state by behavior rather than object shape.
+ * @param {unknown} left
+ * @param {unknown} right
+ * @returns {boolean}
+ */
+export function areComicStatesEqual(left, right) {
+  const leftState = expandComicState(left);
+  const rightState = expandComicState(right);
+  return leftState.read === rightState.read
+    && leftState.favorite === rightState.favorite
+    && leftState.rating === rightState.rating;
+}
+
+/**
  * @param {import('./types.js').ComicStateMap} state
  * @param {number} comicId
  * @returns {import('./types.js').ComicState}

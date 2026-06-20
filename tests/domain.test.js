@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { BROWSE_MODES } from '../src/shared/constants.js';
 import {
+  areComicStatesEqual,
   calculateNextContinuePoint,
   calculateProgress,
   compressComicState,
@@ -34,6 +35,12 @@ test('comic state patches preserve unrelated state', () => {
 
   assert.deepEqual(unreadFavorite, { f: 1, rating: 8 });
   assert.deepEqual(readFavorite, { r: 1, f: 1, rating: 8 });
+});
+
+test('comic state equality ignores persisted representation details', () => {
+  assert.equal(areComicStatesEqual({ r: 1, rating: 8 }, { read: true, rating: 8 }), true);
+  assert.equal(areComicStatesEqual({ f: 1, rating: 8 }, { f: 1, rating: 7 }), false);
+  assert.equal(areComicStatesEqual(undefined, null), true);
 });
 
 test('progress and unread IDs use sparse read state', () => {
