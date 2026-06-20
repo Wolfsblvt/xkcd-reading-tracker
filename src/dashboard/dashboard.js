@@ -511,7 +511,32 @@ function statCard(label, value, detail = '') {
  */
 function renderRatingDistribution(stats) {
   const chart = element('div', { className: 'rating-chart' });
-  chart.append(element('h3', { text: 'Rating distribution' }));
+  chart.append(element('div', {
+    className: 'rating-chart-header',
+    children: [
+      element('h3', { text: 'Rating distribution' }),
+      element('div', {
+        className: 'rating-chart-legend',
+        attrs: { 'aria-label': 'Rating distribution legend' },
+        children: [
+          element('span', {
+            className: 'rating-chart-key',
+            children: [
+              element('span', { className: 'rating-chart-swatch favorite' }),
+              document.createTextNode('Favorites'),
+            ],
+          }),
+          element('span', {
+            className: 'rating-chart-key',
+            children: [
+              element('span', { className: 'rating-chart-swatch non-favorite' }),
+              document.createTextNode('Non-favorites'),
+            ],
+          }),
+        ],
+      }),
+    ],
+  }));
   if (stats.rated === 0) {
     chart.append(element('p', { className: 'muted', text: 'No ratings yet.' }));
     return chart;
@@ -523,22 +548,35 @@ function renderRatingDistribution(stats) {
     className: 'rating-chart-plot',
     attrs: {
       role: 'group',
-      'aria-label': `Distribution of ${stats.rated} rated comics`,
+      'aria-label': `Distribution of ${stats.rated} rated comics, split by favorite state`,
     },
   });
   for (const [ratingText, count] of Object.entries(stats.ratingDistribution)) {
     const rating = Number(ratingText);
     const scaleValue = formatRatingScaleValue(rating);
-    const percent = Math.round((count / stats.rated) * 1000) / 10;
-    const description = `${scaleValue}${scaleSuffix}: ${count} comic${count === 1 ? '' : 's'} (${percent}%)`;
+    const favoriteCount = stats.favoriteRatingDistribution[rating] ?? 0;
+    const nonFavoriteCount = count - favoriteCount;
     const barHeight = count === 0 ? 0 : Math.max(4, (count / maxCount) * 100);
+    const segments = [];
+    for (const [segmentCount, favorite] of [[nonFavoriteCount, false], [favoriteCount, true]]) {
+      if (segmentCount === 0) {
+        continue;
+      }
+      const percentOfRating = Math.round((segmentCount / count) * 1000) / 10;
+      const category = favorite ? 'favorite' : 'non-favorite';
+      const description = `${scaleValue}${scaleSuffix}: ${segmentCount} ${category} comic${segmentCount === 1 ? '' : 's'} (${percentOfRating}% of this rating)`;
+      segments.push(element('span', {
+        className: `rating-chart-segment ${category}`,
+        attrs: {
+          style: `flex-grow: ${segmentCount}`,
+          tabindex: '0',
+          title: description,
+          'aria-label': description,
+        },
+      }));
+    }
     plot.append(element('div', {
       className: 'rating-chart-bin',
-      attrs: {
-        tabindex: '0',
-        title: description,
-        'aria-label': description,
-      },
       children: [
         element('span', {
           className: `rating-chart-count${count === 0 ? ' empty' : ''}`,
@@ -547,8 +585,9 @@ function renderRatingDistribution(stats) {
         element('span', {
           className: 'rating-chart-bar-track',
           children: [element('span', {
-            className: 'rating-chart-bar',
+            className: 'rating-chart-stack',
             attrs: { style: `height: ${barHeight}%` },
+            children: segments,
           })],
         }),
         element('span', { className: 'rating-chart-label', text: scaleValue }),

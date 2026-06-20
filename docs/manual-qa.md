@@ -43,6 +43,7 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 - Skip setup from both dashboard and popup paths and confirm no reading state or settings change.
 - Confirm overview progress, continue link title, statistics, favorites library, unread ranges, settings, data tools, and diagnostics render.
 - Switch between five-star and 1-10 rating modes and confirm averages, perfect-rating text, ranges, and compact histogram labels follow the selected scale.
+- Confirm histogram bars stack favorites below non-favorites and both segment types expose the correct tooltip.
 - Confirm new/reset settings default to five-star rating controls.
 - Search, sort, filter, page through, rate, mark read/unread, unfavorite, and randomly open favorites.
 - Confirm the favorites filter row fills the available width, search expands, page size stays right-aligned, and controls wrap cleanly on a narrow viewport.

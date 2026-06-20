@@ -58,7 +58,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Export filtered favorites as CSV, Markdown, or JSON.
 - Jump to unread range starts/ends and set a range as the next reading anchor.
 - Bulk mark comic numbers or ranges.
-- View aggregate reading, favorite, and rating statistics with a compact rating-distribution histogram.
+- View aggregate reading, favorite, and rating statistics with a compact histogram split by favorite state.
 - Copy a compact diagnostics snapshot for support.
 - Export and import complete JSON backups of user-created state.
 - Reset data with an optional backup-first flow.

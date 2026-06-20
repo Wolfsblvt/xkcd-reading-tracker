@@ -31,11 +31,15 @@ function average(values) {
  *   lowestRating: number | null,
  *   tenOutOfTen: number,
  *   ratingDistribution: Record<number, number>,
+ *   favoriteRatingDistribution: Record<number, number>,
  * }}
  */
 export function calculateTrackerStatistics({ comics, latestComicId }) {
   const progress = calculateProgress(comics, latestComicId);
   const ratingDistribution = Object.fromEntries(
+    Array.from({ length: 10 }, (_, index) => [index + 1, 0])
+  );
+  const favoriteRatingDistribution = Object.fromEntries(
     Array.from({ length: 10 }, (_, index) => [index + 1, 0])
   );
   const ratings = [];
@@ -60,6 +64,7 @@ export function calculateTrackerStatistics({ comics, latestComicId }) {
       }
       if (state.favorite) {
         favoriteRatings.push(state.rating);
+        favoriteRatingDistribution[state.rating] += 1;
       }
     }
   }
@@ -81,5 +86,6 @@ export function calculateTrackerStatistics({ comics, latestComicId }) {
     lowestRating: ratings.length > 0 ? Math.min(...ratings) : null,
     tenOutOfTen,
     ratingDistribution,
+    favoriteRatingDistribution,
   };
 }

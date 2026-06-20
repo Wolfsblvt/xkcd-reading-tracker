@@ -29,4 +29,22 @@ test('tracker statistics summarize progress, favorites, and ratings', () => {
   assert.equal(stats.lowestRating, 4);
   assert.equal(stats.tenOutOfTen, 1);
   assert.equal(stats.ratingDistribution[10], 1);
+  assert.equal(stats.favoriteRatingDistribution[8], 1);
+  assert.equal(stats.favoriteRatingDistribution[10], 0);
+});
+
+test('rating distribution splits favorites from other rated comics', () => {
+  const stats = calculateTrackerStatistics({
+    latestComicId: 4,
+    comics: {
+      1: { rating: 7 },
+      2: { f: 1, rating: 7 },
+      3: { f: 1, rating: 4 },
+    },
+  });
+
+  assert.equal(stats.ratingDistribution[7], 2);
+  assert.equal(stats.favoriteRatingDistribution[7], 1);
+  assert.equal(stats.ratingDistribution[4], 1);
+  assert.equal(stats.favoriteRatingDistribution[4], 1);
 });

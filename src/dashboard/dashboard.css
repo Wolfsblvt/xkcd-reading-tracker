@@ -14,6 +14,8 @@
   --xrt-button-hover: #fff;
   --xrt-danger: #9b111e;
   --xrt-link: #00e;
+  --xrt-chart-non-favorite: #96a8c8;
+  --xrt-chart-favorite: #b86600;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,6 +30,8 @@
     --xrt-button-hover: #363d47;
     --xrt-danger: #ff8c99;
     --xrt-link: #8fb4ff;
+    --xrt-chart-non-favorite: #8297bd;
+    --xrt-chart-favorite: #f0ad4e;
   }
 }
 
@@ -42,6 +46,8 @@
   --xrt-button-hover: #363d47;
   --xrt-danger: #ff8c99;
   --xrt-link: #8fb4ff;
+  --xrt-chart-non-favorite: #8297bd;
+  --xrt-chart-favorite: #f0ad4e;
 }
 
 :root[data-theme="light"] {
@@ -55,6 +61,8 @@
   --xrt-button-hover: #fff;
   --xrt-danger: #9b111e;
   --xrt-link: #00e;
+  --xrt-chart-non-favorite: #96a8c8;
+  --xrt-chart-favorite: #b86600;
 }
 
 body {
@@ -222,8 +230,47 @@ th {
   margin-top: 14px;
 }
 
-.rating-chart h3 {
-  margin: 0 0 8px;
+.rating-chart-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.rating-chart-header h3 {
+  margin: 0;
+}
+
+.rating-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  color: var(--xrt-muted);
+  font-size: 12px;
+}
+
+.rating-chart-key {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.rating-chart-swatch {
+  width: 10px;
+  height: 10px;
+}
+
+.rating-chart-swatch.favorite,
+.rating-chart-segment.favorite {
+  background: var(--xrt-chart-favorite);
+}
+
+.rating-chart-swatch.non-favorite,
+.rating-chart-segment.non-favorite {
+  background: var(--xrt-chart-non-favorite);
 }
 
 .rating-chart-plot {
@@ -241,11 +288,6 @@ th {
   min-width: 0;
   height: 100%;
   text-align: center;
-}
-
-.rating-chart-bin:focus-visible {
-  outline: 2px solid var(--xrt-border);
-  outline-offset: 2px;
 }
 
 .rating-chart-count {
@@ -268,17 +310,29 @@ th {
   justify-content: center;
 }
 
-.rating-chart-bar {
-  display: block;
+.rating-chart-stack {
+  display: flex;
   width: min(34px, 72%);
-  background: var(--xrt-border);
+  min-height: 0;
+  flex-direction: column;
+}
+
+.rating-chart-segment {
+  display: block;
+  min-height: 2px;
+  flex-basis: 0;
   transition: filter 120ms ease, opacity 120ms ease;
 }
 
-.rating-chart-bin:hover .rating-chart-bar,
-.rating-chart-bin:focus-visible .rating-chart-bar {
+.rating-chart-segment:hover,
+.rating-chart-segment:focus-visible {
   filter: brightness(0.86);
   opacity: 0.9;
+}
+
+.rating-chart-segment:focus-visible {
+  outline: 2px solid var(--xrt-text);
+  outline-offset: 1px;
 }
 
 .rating-chart-label {
