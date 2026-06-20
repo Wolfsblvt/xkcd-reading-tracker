@@ -54,14 +54,15 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Show xkcd alt text below the comic or after active-viewing delay.
 - Open the matching Explain xkcd page with a small `Huh?` or `Explain` link.
 - View reading progress, percentages, latest-comic state, and unread ranges.
-- Search, filter, sort, page through, preview, rate, mark read/unread, unfavorite, and randomly open favorite comics from the dashboard.
-- Export filtered favorites as CSV or Markdown.
+- Search, filter, sort, page through, preview, hover-enlarge, rate, mark read/unread, unfavorite, and randomly open favorite comics from the dashboard.
+- Export filtered favorites as CSV, Markdown, or JSON.
 - Jump to unread range starts/ends and set a range as the next reading anchor.
 - Bulk mark comic numbers or ranges.
-- View aggregate reading, favorite, and rating statistics.
+- View aggregate reading, favorite, and rating statistics with a rating-distribution chart.
 - Copy a compact diagnostics snapshot for support.
 - Export and import complete JSON backups of user-created state.
 - Reset data with an optional backup-first flow.
+- Restore default settings without removing reading data or cached comic metadata.
 - Check for newly published comics and show a toolbar badge.
 - Mute the toolbar icon outside detected xkcd comic pages and restore the full-color icon on valid comic tabs.
 - Enable optional keyboard shortcuts on xkcd comic pages.

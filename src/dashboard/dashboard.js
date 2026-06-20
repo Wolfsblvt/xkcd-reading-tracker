@@ -7,6 +7,7 @@ import {
   FAVORITE_SORT_MODES,
   buildFavoriteRows,
   exportFavoriteRowsAsCsv,
+  exportFavoriteRowsAsJson,
   exportFavoriteRowsAsMarkdown,
   filterFavoriteRows,
   getRandomFavoriteRow,
@@ -17,7 +18,7 @@ import {
 import { getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
 import { createOnboardingPlan, ONBOARDING_MODES, shouldSuggestOnboarding } from '../shared/onboarding.js';
 import { formatProgressSummary } from '../shared/progress-format.js';
-import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
+import { formatPreviewRatingValue, formatRatingForDisplay, getRatingButtons } from '../shared/rating-control.js';
 import { formatRanges, getUnreadRangesFromIds, parseComicRangeInput } from '../shared/ranges.js';
 import { calculateTrackerStatistics } from '../shared/statistics.js';
 import { storageService } from '../storage/storage-service.js';
@@ -30,6 +31,9 @@ let storageUsage = null;
 let suppressOwnSettingsRefresh = false;
 let favoriteMetadataRefreshPending = false;
 let favoriteLibraryPreferencesLoaded = false;
+let favoritePreviewTimer = null;
+let favoritePreviewTarget = null;
+let favoritePreviewElement = null;
 const favoriteLibraryState = {
   query: '',
   page: 1,
@@ -138,6 +142,92 @@ function downloadText(name, text, type) {
  */
 function openExternalUrl(url) {
   window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+/**
+ * @returns {HTMLElement}
+ */
+function getFavoritePreviewElement() {
+  if (favoritePreviewElement) {
+    return favoritePreviewElement;
+  }
+
+  favoritePreviewElement = element('div', {
+    className: 'favorite-image-preview',
+    attrs: { role: 'tooltip', 'aria-hidden': 'true' },
+    children: [element('img', { attrs: { alt: '' } })],
+  });
+  document.body.append(favoritePreviewElement);
+  window.addEventListener('resize', hideFavoritePreview);
+  window.addEventListener('scroll', hideFavoritePreview, true);
+  return favoritePreviewElement;
+}
+
+/**
+ * @param {HTMLElement} target
+ */
+function positionFavoritePreview(target) {
+  if (!favoritePreviewElement) {
+    return;
+  }
+
+  const gap = 12;
+  const edge = 8;
+  const targetRect = target.getBoundingClientRect();
+  const previewRect = favoritePreviewElement.getBoundingClientRect();
+  let left = targetRect.right + gap;
+  if (left + previewRect.width > window.innerWidth - edge) {
+    left = targetRect.left - previewRect.width - gap;
+  }
+  left = Math.max(edge, Math.min(left, window.innerWidth - previewRect.width - edge));
+  const top = Math.max(edge, Math.min(targetRect.top, window.innerHeight - previewRect.height - edge));
+  favoritePreviewElement.style.left = `${left}px`;
+  favoritePreviewElement.style.top = `${top}px`;
+}
+
+/**
+ * @param {import('../shared/favorites-library.js').FavoriteLibraryRow} row
+ * @param {HTMLElement} target
+ */
+function scheduleFavoritePreview(row, target) {
+  hideFavoritePreview();
+  favoritePreviewTarget = target;
+  favoritePreviewTimer = window.setTimeout(() => {
+    favoritePreviewTimer = null;
+    if (favoritePreviewTarget !== target || !row.imageUrl) {
+      return;
+    }
+
+    const preview = getFavoritePreviewElement();
+    const image = /** @type {HTMLImageElement} */ (preview.querySelector('img'));
+    const reveal = () => {
+      if (favoritePreviewTarget !== target) {
+        return;
+      }
+      preview.classList.add('visible');
+      preview.setAttribute('aria-hidden', 'false');
+      window.requestAnimationFrame(() => positionFavoritePreview(target));
+    };
+    image.alt = row.title ? `Full-size preview of ${row.title}` : `Full-size preview of xkcd #${row.id}`;
+    image.src = row.imageUrl;
+    if (image.complete && image.naturalWidth > 0) {
+      reveal();
+    } else {
+      image.addEventListener('load', reveal, { once: true });
+    }
+  }, 350);
+}
+
+function hideFavoritePreview() {
+  if (favoritePreviewTimer !== null) {
+    window.clearTimeout(favoritePreviewTimer);
+    favoritePreviewTimer = null;
+  }
+  favoritePreviewTarget = null;
+  if (favoritePreviewElement) {
+    favoritePreviewElement.classList.remove('visible');
+    favoritePreviewElement.setAttribute('aria-hidden', 'true');
+  }
 }
 
 /**
@@ -363,7 +453,28 @@ function renderOverview() {
  * @returns {string}
  */
 function formatStatRating(value) {
-  return value === null ? '-' : `${value}/10`;
+  return formatRatingForDisplay(value, snapshot.settings.ratingDisplay);
+}
+
+/**
+ * @param {number} value
+ * @returns {string}
+ */
+function formatRatingScaleValue(value) {
+  return snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR
+    ? String(Number((value / 2).toFixed(1)))
+    : String(value);
+}
+
+/**
+ * @param {number} count
+ * @returns {string}
+ */
+function formatPerfectRatingCount(count) {
+  if (snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR) {
+    return `${count} 5-star rating${count === 1 ? '' : 's'}`;
+  }
+  return `${count} perfect 10${count === 1 ? '' : 's'}`;
 }
 
 /**
@@ -383,6 +494,46 @@ function statCard(label, value, detail = '') {
   });
 }
 
+/**
+ * @param {ReturnType<typeof calculateTrackerStatistics>} stats
+ * @returns {HTMLElement}
+ */
+function renderRatingDistribution(stats) {
+  const chart = element('div', { className: 'rating-chart' });
+  chart.append(element('h3', { text: 'Rating distribution' }));
+  if (stats.rated === 0) {
+    chart.append(element('p', { className: 'muted', text: 'No ratings yet.' }));
+    return chart;
+  }
+
+  const maxCount = Math.max(...Object.values(stats.ratingDistribution), 1);
+  const scaleSuffix = snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR ? ' stars' : '/10';
+  const rows = element('div', { className: 'rating-chart-rows' });
+  for (const [ratingText, count] of Object.entries(stats.ratingDistribution)) {
+    const rating = Number(ratingText);
+    const scaleValue = formatRatingScaleValue(rating);
+    const percent = Math.round((count / stats.rated) * 1000) / 10;
+    const description = `${scaleValue}${scaleSuffix}: ${count} comic${count === 1 ? '' : 's'} (${percent}%)`;
+    rows.append(element('div', {
+      className: 'rating-chart-row',
+      children: [
+        element('span', { className: 'rating-chart-label', text: scaleValue }),
+        element('progress', {
+          attrs: {
+            max: String(maxCount),
+            value: String(count),
+            title: description,
+            'aria-label': description,
+          },
+        }),
+        element('span', { className: 'rating-chart-count', text: String(count) }),
+      ],
+    }));
+  }
+  chart.append(rows);
+  return chart;
+}
+
 function renderStatistics() {
   const stats = calculateTrackerStatistics({
     comics: snapshot.comics,
@@ -396,20 +547,20 @@ function renderStatistics() {
       statCard('Progress', `${stats.percent}%`, `${stats.read} read, ${stats.unread} unread`),
       statCard('Favorites', String(stats.favorite), `${stats.unreadFavorites} unread favorite${stats.unreadFavorites === 1 ? '' : 's'}`),
       statCard('Rated comics', String(stats.rated), `${stats.unrated} unrated`),
-      statCard('Average rating', formatStatRating(stats.averageRating), `${stats.tenOutOfTen} perfect 10${stats.tenOutOfTen === 1 ? '' : 's'}`),
+      statCard('Average rating', formatStatRating(stats.averageRating), formatPerfectRatingCount(stats.tenOutOfTen)),
       statCard('Favorite average', formatStatRating(stats.averageFavoriteRating), `${stats.ratedFavorites} rated favorite${stats.ratedFavorites === 1 ? '' : 's'}`),
-      statCard('Rating range', stats.highestRating === null ? '-' : `${stats.lowestRating}-${stats.highestRating}`, 'lowest to highest'),
+      statCard(
+        'Rating range',
+        stats.highestRating === null
+          ? '-'
+          : snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR
+            ? `${formatRatingScaleValue(stats.lowestRating)}-${formatRatingScaleValue(stats.highestRating)}/5 stars`
+            : `${stats.lowestRating}-${stats.highestRating}/10`,
+        'lowest to highest'
+      ),
     ],
   }));
-
-  const distributionRows = Object.entries(stats.ratingDistribution)
-    .filter(([, count]) => count > 0)
-    .map(([rating, count]) => `${rating}: ${count}`)
-    .join(' · ');
-  section.append(element('p', {
-    className: 'muted rating-distribution',
-    text: distributionRows ? `Rating distribution: ${distributionRows}` : 'No ratings yet.',
-  }));
+  section.append(renderRatingDistribution(stats));
   return section;
 }
 
@@ -560,20 +711,33 @@ function renderFavorites() {
   const fetchButton = button('Fetch missing titles', fetchMissingFavoriteTitles, {
     title: 'Fetch missing titles for favorite comics from xkcd metadata',
   });
-  const exportCsvButton = button('Export CSV', () => {
+  const exportMenu = /** @type {HTMLDetailsElement} */ (element('details', { className: 'favorite-export-menu' }));
+  const exportSummary = element('summary', {
+    text: 'Export',
+    attrs: { title: 'Export the currently filtered favorites' },
+  });
+  const exportOptions = element('div', { className: 'favorite-export-options' });
+  const exportButtons = [
+    button('CSV', () => {
+      downloadText(`xkcd-favorites-${new Date().toISOString().slice(0, 10)}.csv`, exportFavoriteRowsAsCsv(filteredRows), 'text/csv');
+      exportMenu.open = false;
+    }, { title: 'Export filtered favorites as CSV' }),
+    button('Markdown', () => {
+      downloadText(`xkcd-favorites-${new Date().toISOString().slice(0, 10)}.md`, exportFavoriteRowsAsMarkdown(filteredRows), 'text/markdown');
+      exportMenu.open = false;
+    }, { title: 'Export filtered favorites as a Markdown table' }),
+    button('JSON', () => {
+      downloadText(`xkcd-favorites-${new Date().toISOString().slice(0, 10)}.json`, exportFavoriteRowsAsJson(filteredRows), 'application/json');
+      exportMenu.open = false;
+    }, { title: 'Export filtered favorites as JSON' }),
+  ];
+  exportOptions.append(...exportButtons);
+  exportMenu.append(exportSummary, exportOptions);
+  exportSummary.addEventListener('click', (event) => {
     if (filteredRows.length === 0) {
-      showMessage('No favorites match the current filters.', true);
-      return;
+      event.preventDefault();
     }
-    downloadText(`xkcd-favorites-${new Date().toISOString().slice(0, 10)}.csv`, exportFavoriteRowsAsCsv(filteredRows), 'text/csv');
-  }, { title: 'Export the currently filtered favorites as CSV' });
-  const exportMarkdownButton = button('Export Markdown', () => {
-    if (filteredRows.length === 0) {
-      showMessage('No favorites match the current filters.', true);
-      return;
-    }
-    downloadText(`xkcd-favorites-${new Date().toISOString().slice(0, 10)}.md`, exportFavoriteRowsAsMarkdown(filteredRows), 'text/markdown');
-  }, { title: 'Export the currently filtered favorites as a Markdown table' });
+  });
 
   const updateResults = () => {
     const rows = buildFavoriteRows({
@@ -592,8 +756,11 @@ function renderFavorites() {
     favoriteLibraryState.page = page.currentPage;
     const missingCount = rows.filter((row) => !row.metadataCached).length;
     randomButton.disabled = filteredRows.length === 0;
-    exportCsvButton.disabled = filteredRows.length === 0;
-    exportMarkdownButton.disabled = filteredRows.length === 0;
+    exportMenu.classList.toggle('disabled', filteredRows.length === 0);
+    exportSummary.setAttribute('aria-disabled', String(filteredRows.length === 0));
+    for (const exportButton of exportButtons) {
+      exportButton.disabled = filteredRows.length === 0;
+    }
     fetchButton.disabled = missingCount === 0 || favoriteMetadataRefreshPending;
     fetchButton.title = missingCount === 0
       ? 'All favorite titles are cached'
@@ -628,19 +795,25 @@ function renderFavorites() {
     updateResults();
   });
 
-  section.append(element('div', {
-    className: 'row favorite-library-controls',
-    children: [
-      field('Search', searchInput),
-      field('Filter', ratingFilter),
-      field('Sort', sortMode),
-      field('Page size', pageSize),
-      element('div', {
-        className: 'row favorite-library-actions',
-        children: [randomButton, exportCsvButton, exportMarkdownButton, fetchButton],
-      }),
-    ],
-  }));
+  const searchField = field('Search', searchInput);
+  searchField.classList.add('favorite-search-field');
+  const pageSizeField = field('Page size', pageSize);
+  pageSizeField.classList.add('favorite-page-size-field');
+  section.append(
+    element('div', {
+      className: 'favorite-library-controls',
+      children: [
+        searchField,
+        field('Filter', ratingFilter),
+        field('Sort', sortMode),
+        pageSizeField,
+      ],
+    }),
+    element('div', {
+      className: 'row favorite-library-actions',
+      children: [randomButton, exportMenu, fetchButton],
+    })
+  );
   section.append(results);
   updateResults();
   return section;
@@ -855,30 +1028,34 @@ function renderFavoriteThumbnailCell(row) {
     return element('td', { className: 'muted favorite-thumbnail-cell', text: 'No preview' });
   }
 
-  return element('td', {
-    className: 'favorite-thumbnail-cell',
+  const link = element('a', {
+    className: 'favorite-thumbnail-link',
+    attrs: {
+      href: getComicUrl(row.id),
+      target: '_blank',
+      rel: 'noreferrer',
+    },
     children: [
-      element('a', {
-        className: 'favorite-thumbnail-link',
+      element('img', {
+        className: 'favorite-thumbnail',
         attrs: {
-          href: getComicUrl(row.id),
-          target: '_blank',
-          rel: 'noreferrer',
+          src: row.imageUrl,
+          alt: row.title ? `Preview of ${row.title}` : `Preview of xkcd #${row.id}`,
+          loading: 'lazy',
+          decoding: 'async',
+          referrerpolicy: 'no-referrer',
         },
-        children: [
-          element('img', {
-            className: 'favorite-thumbnail',
-            attrs: {
-              src: row.imageUrl,
-              alt: row.title ? `Preview of ${row.title}` : `Preview of xkcd #${row.id}`,
-              loading: 'lazy',
-              decoding: 'async',
-              referrerpolicy: 'no-referrer',
-            },
-          }),
-        ],
       }),
     ],
+  });
+  link.addEventListener('mouseenter', () => scheduleFavoritePreview(row, link));
+  link.addEventListener('mouseleave', hideFavoritePreview);
+  link.addEventListener('focus', () => scheduleFavoritePreview(row, link));
+  link.addEventListener('blur', hideFavoritePreview);
+
+  return element('td', {
+    className: 'favorite-thumbnail-cell',
+    children: [link],
   });
 }
 
@@ -1208,10 +1385,21 @@ function renderDataTools() {
     ],
   }));
 
+  section.append(element('h3', { text: 'Reset settings' }));
+  section.append(element('p', {
+    className: 'muted',
+    text: 'Restore every setting to its default while keeping read state, favorites, ratings, continue point, and cached metadata.',
+  }));
+  section.append(element('div', {
+    className: 'row',
+    children: [button('Restore default settings', resetSettingsToDefaults)],
+  }));
+
+  const resetConfirmation = snapshot.settings.navigation.useXkcdStyleLabels ? 'TIME MACHINE' : 'RESET';
   const confirmInput = /** @type {HTMLInputElement} */ (element('input', {
     attrs: {
       type: 'text',
-      placeholder: 'Type RESET',
+      placeholder: `Type ${resetConfirmation}`,
       'aria-label': 'Reset confirmation',
     },
   }));
@@ -1219,11 +1407,11 @@ function renderDataTools() {
     className: 'row',
     children: [
       confirmInput,
-      button('Download backup and reset', () => resetData(confirmInput.value, true), { className: 'danger' }),
-      button('Reset without backup', () => resetData(confirmInput.value, false), { className: 'danger' }),
+      button('Download backup and reset', () => resetData(confirmInput.value, resetConfirmation, true), { className: 'danger' }),
+      button('Reset without backup', () => resetData(confirmInput.value, resetConfirmation, false), { className: 'danger' }),
     ],
   });
-  section.append(element('h3', { text: 'Reset' }));
+  section.append(element('h3', { text: 'Reset all data' }));
   section.append(element('p', { className: 'muted', text: 'Reset removes read state, favorites, ratings, settings, continue point, metadata cache, and badge state.' }));
   section.append(resetRow);
 
@@ -1247,6 +1435,17 @@ function renderDataTools() {
     ],
   }));
   return section;
+}
+
+async function resetSettingsToDefaults() {
+  if (!window.confirm('Restore every tracker setting to its default value? Reading data and cached comic metadata will be kept.')) {
+    return;
+  }
+
+  snapshot.settings = await storageService.resetSettings();
+  await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
+  await refresh();
+  showMessage('Default settings restored. Reading data and metadata were kept.');
 }
 
 /**
@@ -1273,11 +1472,12 @@ async function importReplacement(fileInput) {
 
 /**
  * @param {string} confirmation
+ * @param {string} expectedConfirmation
  * @param {boolean} withBackup
  */
-async function resetData(confirmation, withBackup) {
-  if (confirmation !== 'RESET') {
-    showMessage('Type RESET before using a reset button.', true);
+async function resetData(confirmation, expectedConfirmation, withBackup) {
+  if (confirmation !== expectedConfirmation) {
+    showMessage(`Type ${expectedConfirmation} before using a reset button.`, true);
     return;
   }
 

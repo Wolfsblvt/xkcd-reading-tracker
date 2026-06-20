@@ -223,6 +223,15 @@ function formatComicLabel(comicId, title) {
 }
 
 /**
+ * @param {string} generic
+ * @param {string} playful
+ * @returns {string}
+ */
+function popupLabel(generic, playful) {
+  return snapshot?.settings.navigation.useXkcdStyleLabels ? playful : generic;
+}
+
+/**
  * @param {number} comicId
  * @param {string | null | undefined} title
  * @returns {HTMLAnchorElement}
@@ -279,7 +288,7 @@ function renderOnboardingNudge() {
       title: 'Mark every known xkcd comic read',
     }));
   } else {
-    actions.push(button('Check now', async () => {
+    actions.push(button(popupLabel('Check now', 'Any news?'), async () => {
       await chrome.runtime.sendMessage({ type: 'xrt:check-latest-comic' });
       await refresh();
     }, { title: 'Check xkcd for the latest comic number' }));
@@ -358,7 +367,7 @@ function renderNewComicSection() {
     section.append(element('div', {
       className: 'row',
       children: [
-        button('Acknowledge', async () => {
+        button(popupLabel('Acknowledge', 'Noted'), async () => {
           await storageService.acknowledgeLatestComic(lastNew);
           await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
           await refresh();
@@ -495,13 +504,13 @@ function renderLinks() {
       button('Dashboard', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html')), {
         title: 'Open the full xkcd Reading Tracker dashboard',
       }),
-      button('Favorites', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#favorites')), {
+      button(popupLabel('Favorites', 'Neat stuff'), () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#favorites')), {
         title: 'Open the favorites section in the dashboard',
       }),
       button('Settings', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#settings')), {
         title: 'Open tracker settings',
       }),
-      button('Check now', async () => {
+      button(popupLabel('Check now', 'Any news?'), async () => {
         await chrome.runtime.sendMessage({ type: 'xrt:check-latest-comic' });
         await refresh();
       }, { title: 'Check xkcd for a newly published comic now' }),

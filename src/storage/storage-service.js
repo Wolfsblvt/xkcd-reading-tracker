@@ -9,7 +9,7 @@ import {
   isExtensionStorageKey,
 } from '../shared/constants.js';
 import { createBackup, validateBackup } from '../shared/backup.js';
-import { normalizeSettings } from '../shared/defaults.js';
+import { createDefaultSettings, normalizeSettings } from '../shared/defaults.js';
 import {
   calculateNextContinuePoint,
   coerceComicId,
@@ -348,6 +348,13 @@ export async function saveSettings(settings) {
 }
 
 /**
+ * @returns {Promise<import('../shared/types.js').TrackerSettings>}
+ */
+export async function resetSettings() {
+  return saveSettings(createDefaultSettings());
+}
+
+/**
  * @returns {Promise<object>}
  */
 export async function exportBackup() {
@@ -465,6 +472,7 @@ export const storageService = Object.freeze({
   completeOnboarding,
   restartOnboarding,
   saveSettings,
+  resetSettings,
   exportBackup,
   importBackupReplacingData,
   resetTrackerData,

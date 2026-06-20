@@ -7,6 +7,7 @@ import {
   FAVORITE_SORT_MODES,
   buildFavoriteRows,
   exportFavoriteRowsAsCsv,
+  exportFavoriteRowsAsJson,
   exportFavoriteRowsAsMarkdown,
   filterFavoriteRows,
   getRandomFavoriteRow,
@@ -148,7 +149,7 @@ test('favorite library session preferences reject unsupported values', () => {
   });
 });
 
-test('favorite library exports rows as csv and markdown', () => {
+test('favorite library exports rows as csv, markdown, and json', () => {
   const rows = [
     {
       id: 2,
@@ -177,4 +178,16 @@ test('favorite library exports rows as csv and markdown', () => {
   const markdown = exportFavoriteRowsAsMarkdown(rows);
   assert.equal(markdown.includes('| [#2](https://xkcd.com/2/) | Petit, Trees | 8/10 | yes | [xkcd](https://xkcd.com/2/) / [Explain](https://www.explainxkcd.com/wiki/index.php/2) |'), true);
   assert.equal(markdown.includes('A \\| B'), true);
+
+  const json = JSON.parse(exportFavoriteRowsAsJson(rows));
+  assert.deepEqual(json[0], {
+    comic: 2,
+    title: 'Petit, Trees',
+    rating: 8,
+    read: true,
+    xkcdUrl: 'https://xkcd.com/2/',
+    explainXkcdUrl: 'https://www.explainxkcd.com/wiki/index.php/2',
+    imageUrl: 'https://imgs.xkcd.com/comics/petit_trees.png',
+  });
+  assert.equal(json[1].rating, null);
 });

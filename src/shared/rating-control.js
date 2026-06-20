@@ -29,6 +29,27 @@ export function formatPreviewRatingValue(currentRating, previewRating) {
 }
 
 /**
+ * Formats canonical 1-10 values, including calculated averages, for the selected UI scale.
+ * @param {number | null | undefined} rating
+ * @param {import('./types.js').RatingDisplayMode} displayMode
+ * @returns {string}
+ */
+export function formatRatingForDisplay(rating, displayMode) {
+  if (rating == null) {
+    return '-';
+  }
+  const value = Number(rating);
+  if (!Number.isFinite(value)) {
+    return '-';
+  }
+
+  if (displayMode === RATING_DISPLAY_MODES.FIVE_STAR) {
+    return `${Number((value / 2).toFixed(2))}/5 stars`;
+  }
+  return `${Number(value.toFixed(1))}/10`;
+}
+
+/**
  * @param {number | null | undefined} currentRating
  * @returns {RatingButtonDescriptor[]}
  */

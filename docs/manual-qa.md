@@ -38,12 +38,17 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 
 - Run first-time setup from the dashboard and from the popup nudge.
 - Confirm overview progress, continue link title, statistics, favorites library, unread ranges, settings, data tools, and diagnostics render.
+- Switch between five-star and 1-10 rating modes and confirm averages, perfect-rating text, ranges, and distribution-chart labels follow the selected scale.
 - Search, sort, filter, page through, rate, mark read/unread, unfavorite, and randomly open favorites.
-- Export filtered favorites as CSV and Markdown.
+- Confirm the favorites filter row fills the available width, search expands, page size stays right-aligned, and controls wrap cleanly on a narrow viewport.
+- Open the favorites Export menu and export the filtered set as CSV, Markdown, and JSON.
+- Hover and keyboard-focus favorite thumbnails and confirm the delayed full-size preview stays within the viewport and disappears on exit, blur, resize, or scroll.
 - Fetch missing favorite metadata and confirm titles/thumbnails appear.
 - Use bulk marking with `1 - 3`, `1-3`, `1..3`, and invalid/reversed ranges.
 - Confirm settings autosave without jumping to the top of the page.
 - Confirm light, dark, and system dashboard appearance.
+- Restore default settings and confirm read state, favorites, ratings, continue point, and cached metadata remain intact.
+- Confirm full reset requires `TIME MACHINE` with playful labels and `RESET` with generic labels.
 - Copy the diagnostics support snapshot and confirm it does not include the full comic-state map.
 
 ## Storage And Data

@@ -301,3 +301,20 @@ export function exportFavoriteRowsAsMarkdown(rows) {
   }
   return `${lines.join('\n')}\n`;
 }
+
+/**
+ * @param {FavoriteLibraryRow[]} rows
+ * @returns {string}
+ */
+export function exportFavoriteRowsAsJson(rows) {
+  const favorites = rows.map((row) => ({
+    comic: row.id,
+    title: getExportTitle(row),
+    rating: row.rating,
+    read: row.read,
+    xkcdUrl: getComicUrl(row.id),
+    explainXkcdUrl: getExplainXkcdUrl(row.id),
+    imageUrl: row.imageUrl,
+  }));
+  return `${JSON.stringify(favorites, null, 2)}\n`;
+}
