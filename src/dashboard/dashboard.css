@@ -300,7 +300,26 @@ th {
   margin-top: 6px;
 }
 
-.onboarding-actions input[type="number"] {
+.onboarding-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.onboarding-form .settings-group h3 {
+  margin-top: 0;
+}
+
+.onboarding-form .setting-item:last-child {
+  border-bottom: 1px solid var(--xrt-soft-border);
+}
+
+.onboarding-actions {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+.onboarding-form .setting-control > input[type="number"] {
   width: 150px;
 }
 

@@ -58,7 +58,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Export filtered favorites as CSV, Markdown, or JSON.
 - Jump to unread range starts/ends and set a range as the next reading anchor.
 - Bulk mark comic numbers or ranges.
-- View aggregate reading, favorite, and rating statistics with a rating-distribution chart.
+- View aggregate reading, favorite, and rating statistics with a compact rating-distribution histogram.
 - Copy a compact diagnostics snapshot for support.
 - Export and import complete JSON backups of user-created state.
 - Reset data with an optional backup-first flow.
@@ -66,7 +66,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Check for newly published comics and show a toolbar badge.
 - Mute the toolbar icon outside detected xkcd comic pages and restore the full-color icon on valid comic tabs.
 - Enable optional keyboard shortcuts on xkcd comic pages.
-- Run a first-time setup flow to mark older comics read and set a sensible continue point.
+- Run a guided first-time setup to initialize reading progress and choose key comic-page preferences.
 - Use light, dark, or system appearance for the dashboard, while popup and comic-page controls follow xkcd/page styling.
 
 ## Local Installation
@@ -81,7 +81,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 
 On xkcd comic pages, use the injected tracker panel below the comic to mark read state, favorite, rate, set the continue point, change browse mode, open Explain xkcd, and view progress. Optional keyboard shortcuts can be enabled from the dashboard settings.
 
-Use the xkcd-styled toolbar popup for quick progress, setup nudges, current-tab controls, rating, new-comic status, latest-comic access, and dashboard links.
+Use the xkcd-styled toolbar popup for quick progress, a guided-setup reminder, current-tab controls, rating, new-comic status, latest-comic access, and dashboard links.
 
 Use the dashboard/options page for first-time setup, statistics, settings, searchable favorite comics with lazy thumbnails and inline actions, favorite exports, unread ranges, import/export, reset, and diagnostics.
 

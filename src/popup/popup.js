@@ -1,7 +1,7 @@
 import { RATING_DISPLAY_MODES } from '../shared/constants.js';
 import { calculateProgress, getComicState, isValidComicId } from '../shared/comic-state.js';
 import { getComicUrl } from '../shared/navigation.js';
-import { createOnboardingPlan, ONBOARDING_MODES, shouldSuggestOnboarding } from '../shared/onboarding.js';
+import { shouldSuggestOnboarding } from '../shared/onboarding.js';
 import { formatProgressSummary } from '../shared/progress-format.js';
 import { formatPreviewRatingValue, getRatingButtons } from '../shared/rating-control.js';
 import { storageService } from '../storage/storage-service.js';
@@ -263,68 +263,19 @@ function renderProgressSection() {
 
 function renderOnboardingNudge() {
   const section = element('section', { className: 'section onboarding-nudge', children: [element('h2', { text: 'Setup' })] });
-  section.append(element('p', { text: 'Choose where tracking starts so progress and continue links make sense.' }));
-
-  const actions = [
-    button('Open setup', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#onboarding')), {
-      title: 'Open the full setup flow in the dashboard',
-    }),
-  ];
-
-  if (snapshot.meta.latestKnownComicId) {
-    actions.push(
-      button('Start #1', () => applyOnboarding(ONBOARDING_MODES.BEGINNING), {
-        title: 'Set the continue point to the first available comic',
-      })
-    );
-
-    if (activeComic && isValidComicId(activeComic.id, snapshot.meta.latestKnownComicId)) {
-      actions.push(button('Use current', () => applyOnboarding(ONBOARDING_MODES.CURRENT, activeComic.id), {
-        title: `Mark previous comics read and continue at #${activeComic.id}`,
-      }));
-    }
-
-    actions.push(button('Caught up', () => applyOnboarding(ONBOARDING_MODES.CAUGHT_UP), {
-      title: 'Mark every known xkcd comic read',
-    }));
-  } else {
-    actions.push(button(popupLabel('Check now', 'Any news?'), async () => {
-      await chrome.runtime.sendMessage({ type: 'xrt:check-latest-comic' });
-      await refresh();
-    }, { title: 'Check xkcd for the latest comic number' }));
-  }
-
-  actions.push(button('Skip', skipOnboarding, {
-    title: 'Hide setup without changing read state',
+  section.append(element('p', { text: 'Choose your starting point and comic-page preferences in the guided setup.' }));
+  section.append(element('div', {
+    className: 'row',
+    children: [
+      button('Open setup', () => openTab(chrome.runtime.getURL('src/dashboard/dashboard.html#onboarding')), {
+        title: 'Open guided setup in the dashboard',
+      }),
+      button('Skip', skipOnboarding, {
+        title: 'Hide setup without changing read state or settings',
+      }),
+    ],
   }));
-
-  section.append(element('div', { className: 'row', children: actions }));
   return section;
-}
-
-/**
- * @param {string} mode
- * @param {number | null} [targetComicId]
- */
-async function applyOnboarding(mode, targetComicId = null) {
-  const result = createOnboardingPlan({
-    mode,
-    targetComicId,
-    latestComicId: snapshot.meta.latestKnownComicId,
-  });
-  if (!result.ok) {
-    showMessage(result.error, true);
-    return;
-  }
-
-  if (!window.confirm(result.plan.confirmText)) {
-    return;
-  }
-
-  snapshot = await storageService.applyOnboardingPlan(result.plan);
-  await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
-  await refresh();
-  showMessage(result.plan.summary);
 }
 
 async function skipOnboarding() {

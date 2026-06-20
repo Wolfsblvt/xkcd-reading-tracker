@@ -41,6 +41,17 @@ const favoriteLibraryState = {
   ratingFilter: FAVORITE_RATING_FILTERS.ALL,
   sortMode: FAVORITE_SORT_MODES.RATING_DESC,
 };
+const ALT_TEXT_MODE_OPTIONS = Object.freeze({
+  [ALT_TEXT_MODES.NATIVE]: 'Native tooltip only',
+  [ALT_TEXT_MODES.BELOW]: 'Show below comic',
+  [ALT_TEXT_MODES.DELAYED]: 'Reveal after delay',
+  [ALT_TEXT_MODES.HIDDEN]: 'No added display',
+});
+const RATING_DISPLAY_OPTIONS = Object.freeze({
+  [RATING_DISPLAY_MODES.FIVE_STAR]: 'Five stars',
+  [RATING_DISPLAY_MODES.TEN_POINT]: '1-10',
+  [RATING_DISPLAY_MODES.HIDDEN]: 'Hidden',
+});
 
 /**
  * @param {string} tagName
@@ -591,41 +602,128 @@ function renderOnboarding() {
           showMessage('Latest-comic check completed.');
         }),
         button('Skip setup', skipOnboarding, {
-          title: 'Hide setup without changing read state',
+          title: 'Hide setup without changing read state or settings',
         }),
       ],
     }));
     return section;
   }
 
+  const positionMode = selectFromOptions({
+    [ONBOARDING_MODES.BEGINNING]: 'Start at the beginning',
+    [ONBOARDING_MODES.READ_THROUGH]: 'I have read through a comic',
+    [ONBOARDING_MODES.CAUGHT_UP]: 'I am caught up',
+  }, ONBOARDING_MODES.BEGINNING);
   const readThroughInput = /** @type {HTMLInputElement} */ (element('input', {
     attrs: {
       type: 'number',
       min: '1',
       max: String(snapshot.meta.latestKnownComicId),
-      placeholder: `Read through #${snapshot.meta.latestKnownComicId}`,
+      placeholder: `1-${snapshot.meta.latestKnownComicId}`,
       'aria-label': 'Last xkcd comic you have already read',
     },
   }));
+  const ratingDisplay = selectFromOptions(RATING_DISPLAY_OPTIONS, snapshot.settings.ratingDisplay);
+  const altMode = selectFromOptions(ALT_TEXT_MODE_OPTIONS, snapshot.settings.altText.mode);
+  const altDelay = /** @type {HTMLInputElement} */ (element('input', {
+    attrs: { type: 'number', min: '0', max: '3600', value: String(snapshot.settings.altText.delaySeconds) },
+  }));
+  const autoReadEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
+  autoReadEnabled.checked = snapshot.settings.autoMarkRead.enabled;
+  const autoReadDelay = /** @type {HTMLInputElement} */ (element('input', {
+    attrs: { type: 'number', min: '0', max: '3600', value: String(snapshot.settings.autoMarkRead.delaySeconds) },
+  }));
+  const showPageNavActions = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
+  showPageNavActions.checked = snapshot.settings.navigation.showPageNavActions;
+  const keyboardShortcutsEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
+  keyboardShortcutsEnabled.checked = snapshot.settings.keyboardShortcuts.enabled;
+  const useXkcdStyleLabels = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
+  useXkcdStyleLabels.checked = snapshot.settings.navigation.useXkcdStyleLabels;
+
+  const syncDisabledState = () => {
+    readThroughInput.disabled = positionMode.value !== ONBOARDING_MODES.READ_THROUGH;
+    altDelay.disabled = altMode.value !== ALT_TEXT_MODES.DELAYED;
+    autoReadDelay.disabled = !autoReadEnabled.checked;
+  };
+  positionMode.addEventListener('change', syncDisabledState);
+  altMode.addEventListener('change', syncDisabledState);
+  autoReadEnabled.addEventListener('change', syncDisabledState);
+  syncDisabledState();
 
   section.append(element('p', {
-    text: 'Choose your starting point once. This can bulk-mark old comics read and set the first comic you want to continue with.',
+    text: 'Choose where tracking starts and the comic-page behavior you prefer. Nothing changes until you apply setup.',
   }));
   section.append(element('div', {
-    className: 'row onboarding-actions',
+    className: 'onboarding-form',
     children: [
-      button('Start at #1', () => applyOnboarding(ONBOARDING_MODES.BEGINNING), {
-        title: 'Keep every comic unread and set the continue point to the first available comic',
-      }),
-      readThroughInput,
-      button('Apply read-through', () => applyOnboarding(ONBOARDING_MODES.READ_THROUGH, Number(readThroughInput.value)), {
-        title: 'Mark comics up to the entered number read and continue after that',
-      }),
-      button('Caught up', () => applyOnboarding(ONBOARDING_MODES.CAUGHT_UP), {
-        title: 'Mark every known xkcd comic read',
-      }),
-      button('Skip setup', skipOnboarding, {
-        title: 'Hide setup without changing read state',
+      settingGroup('Reading position', [
+        settingItem('Starting point', 'Initializes read state and the next comic to continue with.', positionMode),
+        settingItem('Last comic read', 'Used only when you have already read through a specific comic.', readThroughInput),
+      ]),
+      settingGroup('Preferences', [
+        settingItem('Rating control', 'Choose stars, a 1-10 scale, or no rating controls.', ratingDisplay),
+        settingItem('Alt text', 'Choose how xkcd title text appears below the comic.', element('span', {
+          className: 'inline-field',
+          children: [altMode, altDelay, document.createTextNode('seconds')],
+        })),
+        settingItem('Auto mark read', 'Optionally mark a comic read after active viewing time.', element('span', {
+          className: 'inline-field',
+          children: [autoReadEnabled, document.createTextNode('Enabled'), autoReadDelay, document.createTextNode('seconds')],
+        })),
+        settingItem('Read/Fav nav buttons', 'Add quick toggles to xkcd navigation bars.', element('span', {
+          className: 'inline-field',
+          children: [showPageNavActions, document.createTextNode('Show in xkcd nav')],
+        })),
+        settingItem('Keyboard shortcuts', 'Enable the fixed comic-page shortcut set.', element('span', {
+          className: 'shortcut-setting',
+          children: [
+            element('span', {
+              className: 'inline-field',
+              children: [keyboardShortcutsEnabled, document.createTextNode('Enabled')],
+            }),
+            renderShortcutSummary(),
+          ],
+        })),
+        settingItem('xkcd-style labels', 'Use Got it, Neat, and Huh? instead of generic labels.', element('span', {
+          className: 'inline-field',
+          children: [useXkcdStyleLabels, document.createTextNode('Use playful labels')],
+        })),
+      ]),
+      element('div', {
+        className: 'row onboarding-actions',
+        children: [
+          button('Apply setup', () => applyOnboarding({
+            mode: positionMode.value,
+            targetComicId: positionMode.value === ONBOARDING_MODES.READ_THROUGH
+              ? Number(readThroughInput.value)
+              : null,
+            settings: {
+              ...snapshot.settings,
+              autoMarkRead: {
+                enabled: autoReadEnabled.checked,
+                delaySeconds: Number(autoReadDelay.value),
+              },
+              altText: {
+                mode: /** @type {import('../shared/types.js').AltTextMode} */ (altMode.value),
+                delaySeconds: Number(altDelay.value),
+              },
+              ratingDisplay: /** @type {import('../shared/types.js').RatingDisplayMode} */ (ratingDisplay.value),
+              navigation: {
+                ...snapshot.settings.navigation,
+                showPageNavActions: showPageNavActions.checked,
+                useXkcdStyleLabels: useXkcdStyleLabels.checked,
+              },
+              keyboardShortcuts: {
+                enabled: keyboardShortcutsEnabled.checked,
+              },
+            },
+          }), {
+            title: 'Save these preferences and initialize reading progress',
+          }),
+          button('Skip setup', skipOnboarding, {
+            title: 'Hide setup without changing read state or settings',
+          }),
+        ],
       }),
     ],
   }));
@@ -634,10 +732,9 @@ function renderOnboarding() {
 }
 
 /**
- * @param {string} mode
- * @param {number | null} [targetComicId]
+ * @param {{ mode: string, targetComicId: number | null, settings: import('../shared/types.js').TrackerSettings }} input
  */
-async function applyOnboarding(mode, targetComicId = null) {
+async function applyOnboarding({ mode, targetComicId, settings }) {
   const result = createOnboardingPlan({
     mode,
     targetComicId,
@@ -652,7 +749,14 @@ async function applyOnboarding(mode, targetComicId = null) {
     return;
   }
 
-  snapshot = await storageService.applyOnboardingPlan(result.plan);
+  suppressOwnSettingsRefresh = true;
+  try {
+    const savedSettings = await storageService.saveSettings(settings);
+    snapshot = { ...snapshot, settings: savedSettings };
+    snapshot = await storageService.applyOnboardingPlan(result.plan);
+  } finally {
+    suppressOwnSettingsRefresh = false;
+  }
   await chrome.runtime.sendMessage({ type: 'xrt:update-badge' });
   await refresh();
   showMessage(result.plan.summary);
@@ -1208,18 +1312,9 @@ function renderSettings() {
   const autoReadEnabled = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'checkbox' } }));
   autoReadEnabled.checked = settings.autoMarkRead.enabled;
   const autoReadDelay = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'number', min: '0', max: '3600', value: String(settings.autoMarkRead.delaySeconds) } }));
-  const altMode = selectFromOptions({
-    [ALT_TEXT_MODES.NATIVE]: 'Native tooltip only',
-    [ALT_TEXT_MODES.BELOW]: 'Show below comic',
-    [ALT_TEXT_MODES.DELAYED]: 'Reveal after delay',
-    [ALT_TEXT_MODES.HIDDEN]: 'No added display',
-  }, settings.altText.mode);
+  const altMode = selectFromOptions(ALT_TEXT_MODE_OPTIONS, settings.altText.mode);
   const altDelay = /** @type {HTMLInputElement} */ (element('input', { attrs: { type: 'number', min: '0', max: '3600', value: String(settings.altText.delaySeconds) } }));
-  const ratingDisplay = selectFromOptions({
-    [RATING_DISPLAY_MODES.HIDDEN]: 'Hidden',
-    [RATING_DISPLAY_MODES.TEN_POINT]: '1-10',
-    [RATING_DISPLAY_MODES.FIVE_STAR]: 'Five stars',
-  }, settings.ratingDisplay);
+  const ratingDisplay = selectFromOptions(RATING_DISPLAY_OPTIONS, settings.ratingDisplay);
   const progressDisplay = selectFromOptions({
     [PROGRESS_DISPLAY_MODES.HIDDEN]: 'Hidden',
     [PROGRESS_DISPLAY_MODES.TEXT]: 'Text only',

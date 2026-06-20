@@ -36,9 +36,14 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 
 ## Dashboard
 
-- Run first-time setup from the dashboard and from the popup nudge.
+- Open guided setup from the popup nudge and confirm the dashboard scrolls to it.
+- Change every guided preference, switch among all three reading-position modes, and confirm dependent inputs enable only when relevant.
+- Cancel the bulk-state confirmation and confirm neither reading state nor preferences change.
+- Apply setup and confirm reading state, continue point, preferences, and completion state are saved together.
+- Skip setup from both dashboard and popup paths and confirm no reading state or settings change.
 - Confirm overview progress, continue link title, statistics, favorites library, unread ranges, settings, data tools, and diagnostics render.
-- Switch between five-star and 1-10 rating modes and confirm averages, perfect-rating text, ranges, and distribution-chart labels follow the selected scale.
+- Switch between five-star and 1-10 rating modes and confirm averages, perfect-rating text, ranges, and compact histogram labels follow the selected scale.
+- Confirm new/reset settings default to five-star rating controls.
 - Search, sort, filter, page through, rate, mark read/unread, unfavorite, and randomly open favorites.
 - Confirm the favorites filter row fills the available width, search expands, page size stays right-aligned, and controls wrap cleanly on a narrow viewport.
 - Open the favorites Export menu and export the filtered set as CSV, Markdown, and JSON.
