@@ -39,6 +39,8 @@ let autoReadTimerArmed = false;
 let altTextTimer = null;
 let refreshQueued = false;
 let dashboardUrl = '';
+let localSyncWriteDepth = 0;
+let comicMutationPending = false;
 
 /**
  * @param {unknown} error
@@ -124,6 +126,23 @@ async function sendRuntimeMessage(message) {
     return await chrome.runtime.sendMessage(message);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Suppresses the storage-change echo caused by a write from this page.
+ * @template T
+ * @param {() => Promise<T>} operation
+ * @returns {Promise<T>}
+ */
+async function runLocalSyncWrite(operation) {
+  localSyncWriteDepth += 1;
+  try {
+    return await operation();
+  } finally {
+    window.setTimeout(() => {
+      localSyncWriteDepth = Math.max(0, localSyncWriteDepth - 1);
+    }, 0);
   }
 }
 
@@ -416,7 +435,9 @@ async function loadBrowseMode() {
 async function setBrowseMode(mode) {
   browseMode = mode;
   await sendRuntimeMessage({ type: 'xrt:set-tab-browse-mode', mode });
-  render();
+  panel?.querySelector('.xrt-mode-row')?.replaceWith(renderModeControls());
+  renderNavigation();
+  renderBrowseModeNotice();
 }
 
 /**
@@ -428,24 +449,53 @@ function isEditableShortcutTarget(target) {
     && Boolean(target.closest('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]'));
 }
 
-async function toggleReadShortcut() {
-  const state = getComicState(snapshot.comics, currentComic.id);
-  cancelAutoReadTimer();
-  snapshot = await storageService.updateComicState(currentComic.id, { read: !state.read });
-  if (!state.read) {
-    await sendRuntimeMessage({ type: 'xrt:update-badge' });
+async function runComicMutation(operation, { cancelTimer = true } = {}) {
+  if (comicMutationPending) {
+    return false;
   }
-  render();
+
+  comicMutationPending = true;
+  if (cancelTimer) {
+    cancelAutoReadTimer();
+  }
+  try {
+    await runLocalSyncWrite(operation);
+    return true;
+  } finally {
+    comicMutationPending = false;
+  }
 }
 
-async function toggleFavoriteShortcut() {
+/**
+ * @param {Partial<import('../shared/types.js').ComicState>} patch
+ * @param {{ progress?: boolean, continuePoint?: boolean, navigation?: boolean }} renderOptions
+ * @param {{ cancelTimer?: boolean }} [mutationOptions]
+ * @returns {Promise<boolean>}
+ */
+async function applyCurrentComicPatch(patch, renderOptions, mutationOptions = {}) {
+  const changed = await runComicMutation(async () => {
+    snapshot = await storageService.updateComicState(currentComic.id, patch);
+  }, mutationOptions);
+  if (changed) {
+    renderCurrentComicState(renderOptions);
+  }
+  return changed;
+}
+
+async function toggleCurrentRead() {
   const state = getComicState(snapshot.comics, currentComic.id);
-  cancelAutoReadTimer();
-  snapshot = await storageService.updateComicState(currentComic.id, { favorite: !state.favorite });
-  render();
+  await applyCurrentComicPatch(
+    { read: !state.read },
+    { progress: true, continuePoint: true, navigation: true }
+  );
 }
 
-async function setContinueShortcut() {
+async function toggleCurrentFavorite() {
+  const state = getComicState(snapshot.comics, currentComic.id);
+  await applyCurrentComicPatch({ favorite: !state.favorite }, { navigation: true });
+}
+
+async function setCurrentContinuePoint() {
   const state = getComicState(snapshot.comics, currentComic.id);
   if (state.read) {
     showMessage('Read comics cannot be set as the continue point.', 'info');
@@ -456,10 +506,21 @@ async function setContinueShortcut() {
     return;
   }
 
-  cancelAutoReadTimer();
-  await storageService.setContinuePoint(currentComic.id);
-  await refreshFromStorage();
-  showMessage(`Continue point set to #${currentComic.id}.`);
+  const changed = await runComicMutation(async () => {
+    await storageService.setContinuePoint(currentComic.id);
+    snapshot = await storageService.getTrackerSnapshot();
+  });
+  if (changed) {
+    renderCurrentComicState({ continuePoint: true });
+    showMessage(`Continue point set to #${currentComic.id}.`);
+  }
+}
+
+/**
+ * @param {number | null} rating
+ */
+async function setCurrentRating(rating) {
+  await applyCurrentComicPatch({ rating }, {});
 }
 
 /**
@@ -502,11 +563,11 @@ async function handleKeyboardShortcut(event) {
   event.preventDefault();
   try {
     if (shortcut === 'TOGGLE_READ') {
-      await toggleReadShortcut();
+      await toggleCurrentRead();
     } else if (shortcut === 'TOGGLE_FAVORITE') {
-      await toggleFavoriteShortcut();
+      await toggleCurrentFavorite();
     } else if (shortcut === 'SET_CONTINUE') {
-      await setContinueShortcut();
+      await setCurrentContinuePoint();
     } else if (shortcut === 'PREVIOUS') {
       navigateShortcut('previous');
     } else if (shortcut === 'NEXT') {
@@ -550,33 +611,17 @@ function renderStateControls() {
   const isContinuePoint = snapshot.meta.continuePoint === currentComic.id;
   const canSetContinuePoint = !state.read && !isContinuePoint;
   row.append(
-    button('Read', async () => {
-      cancelAutoReadTimer();
-      snapshot = await storageService.updateComicState(currentComic.id, { read: !state.read });
-      if (!state.read) {
-        await sendRuntimeMessage({ type: 'xrt:update-badge' });
-      }
-      render();
-    }, {
+    button('Read', toggleCurrentRead, {
       className: 'xrt-state-button xrt-read-button',
       pressed: state.read,
       title: state.read ? 'Mark this comic unread' : 'Mark this comic read',
     }),
-    button('Fav', async () => {
-      cancelAutoReadTimer();
-      snapshot = await storageService.updateComicState(currentComic.id, { favorite: !state.favorite });
-      render();
-    }, {
+    button('Fav', toggleCurrentFavorite, {
       className: 'xrt-state-button xrt-fav-button',
       pressed: state.favorite,
       title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites',
     }),
-    button('Continue', async () => {
-      cancelAutoReadTimer();
-      await storageService.setContinuePoint(currentComic.id);
-      await refreshFromStorage();
-      showMessage(`Continue point set to #${currentComic.id}.`);
-    }, {
+    button('Continue', setCurrentContinuePoint, {
       disabled: !canSetContinuePoint,
       pressed: isContinuePoint,
       title: isContinuePoint
@@ -611,11 +656,7 @@ function renderRatingControl(state) {
     const buttons = getRatingButtons(snapshot.settings.ratingDisplay, state.rating);
     if (snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR) {
       for (const descriptor of buttons) {
-        wrapper.append(button(descriptor.text, async () => {
-          cancelAutoReadTimer();
-          snapshot = await storageService.updateComicState(currentComic.id, { rating: descriptor.rating });
-          render();
-        }, {
+        wrapper.append(button(descriptor.text, () => setCurrentRating(descriptor.rating), {
           className: descriptor.className,
           pressed: descriptor.pressed,
           title: descriptor.title,
@@ -627,11 +668,7 @@ function renderRatingControl(state) {
         valueLabel.textContent = formatPreviewRatingValue(state.rating, rating);
       };
       for (const descriptor of buttons) {
-        const dot = button(descriptor.text, async () => {
-          cancelAutoReadTimer();
-          snapshot = await storageService.updateComicState(currentComic.id, { rating: descriptor.rating });
-          render();
-        }, {
+        const dot = button(descriptor.text, () => setCurrentRating(descriptor.rating), {
           className: descriptor.className,
           pressed: descriptor.pressed,
           title: descriptor.title,
@@ -647,9 +684,7 @@ function renderRatingControl(state) {
 
     wrapper.append(button('Clear', async () => {
       if (state.rating) {
-        cancelAutoReadTimer();
-        snapshot = await storageService.updateComicState(currentComic.id, { rating: null });
-        render();
+        await setCurrentRating(null);
       }
     }, {
       className: 'xrt-rating-clear',
@@ -768,6 +803,60 @@ function renderHeader() {
   return header;
 }
 
+/**
+ * @param {string} selector
+ * @param {Node} replacement
+ */
+function replacePanelPart(selector, replacement) {
+  const current = panel?.querySelector(selector);
+  if (!current) {
+    return;
+  }
+  if (replacement instanceof DocumentFragment && replacement.childNodes.length === 0) {
+    current.remove();
+    return;
+  }
+  current.replaceWith(replacement);
+}
+
+/**
+ * @param {{ progress?: boolean, continuePoint?: boolean, navigation?: boolean }} [options]
+ */
+function renderCurrentComicState(options = {}) {
+  if (!panel || !snapshot || !currentComic) {
+    return;
+  }
+
+  replacePanelPart('.xrt-header', renderHeader());
+  replacePanelPart('.xrt-state-row', renderStateControls());
+  if (options.progress) {
+    replacePanelPart('.xrt-progress', renderProgress());
+  }
+  if (options.continuePoint) {
+    replacePanelPart('.xrt-continue', renderContinuePoint());
+  }
+  if (options.navigation) {
+    renderNavigation();
+    renderBrowseModeNotice();
+  }
+}
+
+function refreshComicContext() {
+  if (!panel) {
+    return;
+  }
+
+  const current = panel.querySelector('.xrt-comic-context');
+  const replacement = renderComicContext();
+  if (replacement instanceof DocumentFragment && replacement.childNodes.length === 0) {
+    current?.remove();
+  } else if (current) {
+    current.replaceWith(replacement);
+  } else {
+    panel.prepend(replacement);
+  }
+}
+
 function renderLinks() {
   const href = getDashboardUrl();
   const row = element('div', { className: 'xrt-link-row' });
@@ -834,8 +923,35 @@ function restoreOriginalNavigation() {
  */
 function restoreOriginalNavigationItem(item) {
   if (item.hasAttribute('data-xrt-original-html')) {
-    item.innerHTML = item.getAttribute('data-xrt-original-html') ?? item.innerHTML;
+    const originalHtml = item.getAttribute('data-xrt-original-html');
+    if (originalHtml !== null && item.innerHTML !== originalHtml) {
+      item.innerHTML = originalHtml;
+    }
   }
+}
+
+/**
+ * @param {HTMLElement} item
+ * @param {{ label: string, title: string }} action
+ * @param {number} targetId
+ */
+function renderEnabledNavigationItem(item, action, targetId) {
+  const href = getComicUrl(targetId);
+  const title = `${action.title} ${browseMode} comic: #${targetId}`;
+  const current = item.children.length === 1 ? item.firstElementChild : null;
+  if (
+    current?.tagName === 'A'
+    && current.textContent === action.label
+    && current.getAttribute('href') === href
+    && current.getAttribute('title') === title
+  ) {
+    return;
+  }
+
+  item.replaceChildren(element('a', {
+    text: action.label,
+    attrs: { href, title },
+  }));
 }
 
 /**
@@ -844,6 +960,15 @@ function restoreOriginalNavigationItem(item) {
  * @param {string} reason
  */
 function renderDisabledNavigationItem(item, action, reason) {
+  const current = item.children.length === 1 ? item.firstElementChild : null;
+  if (
+    current?.classList.contains('xrt-disabled-nav')
+    && current.textContent === action.label
+    && current.getAttribute('title') === reason
+  ) {
+    return;
+  }
+
   item.replaceChildren(element('span', {
     text: action.label,
     attrs: {
@@ -858,62 +983,57 @@ function renderDisabledNavigationItem(item, action, reason) {
  * @param {HTMLElement} navBar
  */
 function renderNavActions(navBar) {
-  for (const item of navBar.querySelectorAll('.xrt-nav-action')) {
-    item.remove();
-  }
-
   const state = getComicState(snapshot.comics, currentComic.id);
   const labels = snapshot.settings.navigation.useXkcdStyleLabels ? LABELS.themed : LABELS.generic;
   const actionItems = [
     {
+      name: 'read',
       text: labels.read,
       title: state.read ? 'Mark this comic unread' : 'Mark this comic read',
       pressed: state.read,
-      action: async () => {
-        cancelAutoReadTimer();
-        snapshot = await storageService.updateComicState(currentComic.id, { read: !state.read });
-        if (!state.read) {
-          await sendRuntimeMessage({ type: 'xrt:update-badge' });
-        }
-        render();
-      },
     },
     {
+      name: 'favorite',
       text: labels.favorite,
       title: state.favorite ? 'Remove this comic from favorites' : 'Add this comic to favorites',
       pressed: state.favorite,
-      action: async () => {
-        cancelAutoReadTimer();
-        snapshot = await storageService.updateComicState(currentComic.id, { favorite: !state.favorite });
-        render();
-      },
     },
   ];
 
+  const existingItems = [...navBar.querySelectorAll('.xrt-nav-action')];
   let insertionPoint = getNavigationItems(navBar).find(([, role]) => role === 'previous')?.[0] ?? navBar.lastElementChild;
-  for (const action of actionItems) {
-    const item = element('li', { className: 'xrt-nav-action' });
-    const link = element('a', {
-      className: 'xrt-nav-action-link',
-      text: action.text,
-      attrs: {
-        href: '#',
-        title: action.title,
-        'aria-pressed': String(action.pressed),
-      },
-    });
-    link.addEventListener('click', async (event) => {
-      event.preventDefault();
-      try {
-        await action.action();
-      } catch (error) {
-        showMessage(error instanceof Error ? error.message : String(error), 'error');
-        logNonFatal(error);
-      }
-    });
-    item.append(link);
-    insertionPoint?.insertAdjacentElement('afterend', item);
+  for (const [index, action] of actionItems.entries()) {
+    let item = existingItems[index];
+    if (!item) {
+      item = element('li', { className: 'xrt-nav-action' });
+      const link = element('a', { className: 'xrt-nav-action-link', attrs: { href: '#' } });
+      link.addEventListener('click', async (event) => {
+        event.preventDefault();
+        try {
+          if (link.dataset.xrtAction === 'read') {
+            await toggleCurrentRead();
+          } else if (link.dataset.xrtAction === 'favorite') {
+            await toggleCurrentFavorite();
+          }
+        } catch (error) {
+          showMessage(error instanceof Error ? error.message : String(error), 'error');
+          logNonFatal(error);
+        }
+      });
+      item.append(link);
+      insertionPoint?.insertAdjacentElement('afterend', item);
+    }
+
+    const link = /** @type {HTMLAnchorElement} */ (item.querySelector('.xrt-nav-action-link'));
+    link.dataset.xrtAction = action.name;
+    link.textContent = action.text;
+    link.title = action.title;
+    link.setAttribute('aria-pressed', String(action.pressed));
     insertionPoint = item;
+  }
+
+  for (const item of existingItems.slice(actionItems.length)) {
+    item.remove();
   }
 }
 
@@ -957,14 +1077,7 @@ function renderNavigation() {
       } else if (browseMode === BROWSE_MODES.ALL && !isDisabled) {
         restoreOriginalNavigationItem(item);
       } else if (!isDisabled) {
-        item.replaceChildren();
-        item.append(element('a', {
-          text: action.label,
-          attrs: {
-            href: getComicUrl(targetId),
-            title: `${action.title} ${browseMode} comic: #${targetId}`,
-          },
-        }));
+        renderEnabledNavigationItem(item, action, targetId);
       } else {
         renderDisabledNavigationItem(
           item,
@@ -997,9 +1110,11 @@ function scheduleTimers() {
     autoReadTimerArmed = true;
     autoReadTimer = startActiveTimer(snapshot.settings.autoMarkRead.delaySeconds, async () => {
       autoReadTimer = null;
-      snapshot = await storageService.updateComicState(currentComic.id, { read: true });
-      await sendRuntimeMessage({ type: 'xrt:update-badge' });
-      render();
+      await applyCurrentComicPatch(
+        { read: true },
+        { progress: true, continuePoint: true, navigation: true },
+        { cancelTimer: false }
+      );
     });
   }
 
@@ -1007,8 +1122,27 @@ function scheduleTimers() {
     altTextTimer = startActiveTimer(snapshot.settings.altText.delaySeconds, () => {
       altRevealed = true;
       altRevealAnimationPending = true;
-      render();
+      refreshComicContext();
     });
+  }
+}
+
+function renderBrowseModeNotice() {
+  panel?.querySelector('.xrt-message')?.remove();
+  if (browseMode === BROWSE_MODES.ALL) {
+    return;
+  }
+
+  const nav = calculateNavigation({
+    mode: browseMode,
+    currentId: currentComic.id,
+    state: snapshot.comics,
+    latestComicId: snapshot.meta.latestKnownComicId,
+  });
+  if (nav.count === 0) {
+    showMessage(`No ${browseMode} comics are available.`, 'info');
+  } else if (!nav.includesCurrent) {
+    showMessage(`This comic is not in the ${browseMode} set. Navigation uses the nearest matching comic numbers.`, 'info');
   }
 }
 
@@ -1017,17 +1151,17 @@ function render() {
     return;
   }
 
-  panel.replaceChildren();
   syncPageStyleVariables();
   if (!isValidComicId(currentComic.id, snapshot.meta.latestKnownComicId)) {
-    panel.append(
+    panel.replaceChildren(
       element('h3', { text: 'Reading tracker' }),
       element('p', { text: `Comic #${currentComic.id} is unavailable or outside the known xkcd range.` })
     );
     return;
   }
 
-  panel.append(
+  const content = document.createDocumentFragment();
+  content.append(
     renderComicContext(),
     renderHeader(),
     renderStateControls(),
@@ -1036,22 +1170,10 @@ function render() {
     renderContinuePoint(),
     renderLinks()
   );
+  panel.replaceChildren(content);
   renderNavigation();
   scheduleTimers();
-
-  if (browseMode !== BROWSE_MODES.ALL) {
-    const nav = calculateNavigation({
-      mode: browseMode,
-      currentId: currentComic.id,
-      state: snapshot.comics,
-      latestComicId: snapshot.meta.latestKnownComicId,
-    });
-    if (nav.count === 0) {
-      showMessage(`No ${browseMode} comics are available.`, 'info');
-    } else if (!nav.includesCurrent) {
-      showMessage(`This comic is not in the ${browseMode} set. Navigation uses the nearest matching comic numbers.`, 'info');
-    }
-  }
+  renderBrowseModeNotice();
 }
 
 async function refreshFromStorage() {
@@ -1090,6 +1212,9 @@ function addMessageHandlers() {
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync' && Object.keys(changes).some((key) => key.startsWith('xrt:'))) {
+      if (localSyncWriteDepth > 0) {
+        return;
+      }
       queueRefreshFromStorage();
     }
   });
@@ -1121,9 +1246,10 @@ export async function initXkcdTracker() {
   await reportComicPageDetected();
 
   if (snapshot?.meta.lastNewComicId && currentComic.id >= snapshot.meta.lastNewComicId) {
-    await storageService.acknowledgeLatestComic(currentComic.id);
-    await sendRuntimeMessage({ type: 'xrt:update-badge' });
-    snapshot = await storageService.getTrackerSnapshot();
+    await runLocalSyncWrite(async () => {
+      await storageService.acknowledgeLatestComic(currentComic.id);
+      snapshot = await storageService.getTrackerSnapshot();
+    });
   }
 
   render();
