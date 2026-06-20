@@ -6,6 +6,7 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 
 - Load the unpacked extension in `chrome://extensions`.
 - Confirm the toolbar icon starts muted on a non-xkcd tab.
+- Confirm the toolbar badge shows `SET` before onboarding, including when the new-comic badge setting is disabled.
 - Open `https://xkcd.com/1/` and confirm the tracker panel appears below the comic.
 - Confirm the toolbar icon switches to the full-color icon on a valid xkcd comic tab.
 - Switch between xkcd and non-xkcd tabs and confirm the icon follows the active tab.
@@ -21,6 +22,7 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 - Mark a comic read/unread from the injected panel.
 - Favorite/unfavorite a comic from the injected panel.
 - Set and clear/change ratings for both star and 1-10 rating display modes.
+- Rapidly repeat the same rating and confirm controls settle without duplicate state changes or a full panel/navigation flicker.
 - Confirm read/favorite nav-bar buttons work when enabled.
 - Disable read/favorite nav-bar buttons in settings and confirm xkcd nav bars stop receiving them.
 - Confirm filtered navigation works in all/unread/favorites modes.
@@ -40,6 +42,7 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 - Change every guided preference, switch among all three reading-position modes, and confirm dependent inputs enable only when relevant.
 - Cancel the bulk-state confirmation and confirm neither reading state nor preferences change.
 - Apply setup and confirm reading state, continue point, preferences, and completion state are saved together.
+- Confirm completing or skipping setup clears `SET` and restores the configured `NEW` badge behavior.
 - Skip setup from both dashboard and popup paths and confirm no reading state or settings change.
 - Confirm overview progress, continue link title, statistics, favorites library, unread ranges, settings, data tools, and diagnostics render.
 - Switch between five-star and 1-10 rating modes and confirm averages, perfect-rating text, ranges, and compact histogram labels follow the selected scale.

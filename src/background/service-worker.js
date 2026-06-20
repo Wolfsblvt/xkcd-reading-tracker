@@ -1,6 +1,7 @@
 import { BROWSE_MODES, LATEST_COMIC_ALARM, SESSION_TAB_MODE_PREFIX, isChunkKey } from '../shared/constants.js';
 import { coerceComicId, getFavoriteComicIds, isValidComicId } from '../shared/comic-state.js';
 import { createLatestComicCheckPatch } from '../shared/latest-comic.js';
+import { getToolbarBadgeState } from '../shared/toolbar-badge.js';
 import { storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
 
@@ -120,16 +121,13 @@ async function configureLatestComicAlarm() {
  */
 async function updateBadge() {
   const snapshot = await storageService.getTrackerSnapshot();
-  const acknowledged = snapshot.meta.acknowledgedLatestComicId ?? 0;
-  const lastNewComicId = snapshot.meta.lastNewComicId ?? 0;
-  const showBadge = snapshot.settings.badge.enabled && lastNewComicId > acknowledged;
-  const title = showBadge ? `New xkcd comic #${lastNewComicId} is available` : DEFAULT_ACTION_TITLE;
+  const badge = getToolbarBadgeState(snapshot);
 
-  await chrome.action.setBadgeText({ text: showBadge ? 'NEW' : '' });
-  if (showBadge) {
-    await chrome.action.setBadgeBackgroundColor({ color: '#6E7B9D' });
+  await chrome.action.setBadgeText({ text: badge.text });
+  if (badge.color) {
+    await chrome.action.setBadgeBackgroundColor({ color: badge.color });
   }
-  await chrome.action.setTitle({ title });
+  await chrome.action.setTitle({ title: badge.title || DEFAULT_ACTION_TITLE });
 }
 
 /**

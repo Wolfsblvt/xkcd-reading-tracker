@@ -108,6 +108,8 @@ Alt text comes from the comic image `title` attribute or fetched metadata. It is
 
 Automatic read marking is a one-shot page-load timer. It does not restart from ordinary re-renders or from clicking tracker controls. Explicit tracker interactions cancel the pending auto-read timer so a deliberate user choice is not overwritten a few seconds later.
 
+Comic-page actions update only the affected tracker sections and preserve the injected navigation action nodes. Writes initiated by the page suppress their own `chrome.storage.onChanged` echo, while storage changes from other extension surfaces still trigger a full refresh. This avoids duplicate rendering and visible page-wide control flicker without introducing a client-side state framework.
+
 Read/favorite controls can also be injected into the xkcd navigation bars, near the controls readers use repeatedly. This is enabled by default but can be disabled for users who prefer the original nav bars to stop moving after extension injection. The injected navigation labels default to xkcd-flavored wording (`Got it`, `Neat`, `Huh?`) and can be changed to generic labels (`Read`, `Fav`, `Explain`). The full tracker panel keeps the obvious `Read` and `Fav` actions for discoverability and for the rating control.
 
 Keyboard shortcuts are opt-in and only active on xkcd comic pages. They ignore form fields, contenteditable elements, and browser modifier shortcuts. The first fixed shortcut set covers read/unread, favorite, continue point, previous/next navigation, and Explain xkcd.
@@ -140,7 +142,7 @@ The dashboard supports light, dark, and system appearance. The popup and content
 
 The background service worker uses `chrome.alarms` to check xkcd's latest `info.0.json` endpoint. The default interval is six hours. First install records the current latest comic as acknowledged so existing backlog is not treated as newly published.
 
-After a genuinely newer comic is discovered, `xrt:meta.lastNewComicId` is set. The toolbar badge shows `NEW` when that value is greater than `acknowledgedLatestComicId` and the badge setting is enabled.
+Until onboarding is completed, the toolbar badge shows `SET` regardless of the optional new-comic badge setting. This setup reminder takes precedence over new-comic state. After onboarding, the badge shows `NEW` only when `lastNewComicId` is greater than `acknowledgedLatestComicId` and the badge setting is enabled.
 
 The toolbar action icon defaults to a muted generated icon. When the content script detects a valid xkcd comic page, it sends the comic ID to the service worker, which sets the normal icon for that tab and mirrors the icon globally when that tab is active. Navigation resets the tab and active global icon back to muted until another valid comic is detected. Runtime `chrome.action.setIcon` paths are extension-root paths because MV3 service-worker calls are stricter than manifest icon declarations. This keeps the `NEW` badge reserved for new-comic state instead of mixing page-detection status into badge text.
 
@@ -164,6 +166,8 @@ Rebuildable local xkcd metadata is intentionally excluded.
 Import validates the format and replaces current tracker data. It writes the replacement data before removing stale old chunks where possible. Merge import is deferred because it needs deliberate conflict semantics.
 
 Settings-only reset writes a fresh copy of the global defaults while preserving comic state, continue point, cached metadata, and session-scoped UI preferences. Full reset removes sync state, local metadata cache, and session-scoped UI state, then reinitializes defaults. The dashboard requires typing `TIME MACHINE` when playful labels are enabled or `RESET` in generic-label mode, and offers both "download backup and reset" and "reset without backup".
+
+The storage service discards writes that would not change comic state, metadata, continue point, or normalized settings. Chrome still enforces its own `storage.sync` write quotas; if deliberate rapid changes exceed the per-minute limit, the service reports an actionable temporary-rate-limit message instead of exposing Chrome's internal quota constant.
 
 ## Permissions And Security
 
