@@ -508,29 +508,43 @@ function renderRatingDistribution(stats) {
 
   const maxCount = Math.max(...Object.values(stats.ratingDistribution), 1);
   const scaleSuffix = snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR ? ' stars' : '/10';
-  const rows = element('div', { className: 'rating-chart-rows' });
+  const plot = element('div', {
+    className: 'rating-chart-plot',
+    attrs: {
+      role: 'group',
+      'aria-label': `Distribution of ${stats.rated} rated comics`,
+    },
+  });
   for (const [ratingText, count] of Object.entries(stats.ratingDistribution)) {
     const rating = Number(ratingText);
     const scaleValue = formatRatingScaleValue(rating);
     const percent = Math.round((count / stats.rated) * 1000) / 10;
     const description = `${scaleValue}${scaleSuffix}: ${count} comic${count === 1 ? '' : 's'} (${percent}%)`;
-    rows.append(element('div', {
-      className: 'rating-chart-row',
+    const barHeight = count === 0 ? 0 : Math.max(4, (count / maxCount) * 100);
+    plot.append(element('div', {
+      className: 'rating-chart-bin',
+      attrs: {
+        tabindex: '0',
+        title: description,
+        'aria-label': description,
+      },
       children: [
-        element('span', { className: 'rating-chart-label', text: scaleValue }),
-        element('progress', {
-          attrs: {
-            max: String(maxCount),
-            value: String(count),
-            title: description,
-            'aria-label': description,
-          },
+        element('span', {
+          className: `rating-chart-count${count === 0 ? ' empty' : ''}`,
+          text: String(count),
         }),
-        element('span', { className: 'rating-chart-count', text: String(count) }),
+        element('span', {
+          className: 'rating-chart-bar-track',
+          children: [element('span', {
+            className: 'rating-chart-bar',
+            attrs: { style: `height: ${barHeight}%` },
+          })],
+        }),
+        element('span', { className: 'rating-chart-label', text: scaleValue }),
       ],
     }));
   }
-  chart.append(rows);
+  chart.append(plot);
   return chart;
 }
 
@@ -553,9 +567,7 @@ function renderStatistics() {
         'Rating range',
         stats.highestRating === null
           ? '-'
-          : snapshot.settings.ratingDisplay === RATING_DISPLAY_MODES.FIVE_STAR
-            ? `${formatRatingScaleValue(stats.lowestRating)}-${formatRatingScaleValue(stats.highestRating)}/5 stars`
-            : `${stats.lowestRating}-${stats.highestRating}/10`,
+          : `${formatRatingScaleValue(stats.lowestRating)}-${formatRatingScaleValue(stats.highestRating)}`,
         'lowest to highest'
       ),
     ],

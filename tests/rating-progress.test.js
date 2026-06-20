@@ -25,8 +25,8 @@ test('rating descriptors render ten-point dots and preview labels', () => {
 });
 
 test('aggregate ratings follow the selected display scale', () => {
-  assert.equal(formatRatingForDisplay(7.3, RATING_DISPLAY_MODES.TEN_POINT), '7.3/10');
-  assert.equal(formatRatingForDisplay(5.5, RATING_DISPLAY_MODES.FIVE_STAR), '2.75/5 stars');
+  assert.equal(formatRatingForDisplay(7.3, RATING_DISPLAY_MODES.TEN_POINT), '7.3');
+  assert.equal(formatRatingForDisplay(5.5, RATING_DISPLAY_MODES.FIVE_STAR), '2.75');
   assert.equal(formatRatingForDisplay(null, RATING_DISPLAY_MODES.FIVE_STAR), '-');
 });
 

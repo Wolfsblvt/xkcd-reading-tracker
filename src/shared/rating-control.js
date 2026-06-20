@@ -44,9 +44,9 @@ export function formatRatingForDisplay(rating, displayMode) {
   }
 
   if (displayMode === RATING_DISPLAY_MODES.FIVE_STAR) {
-    return `${Number((value / 2).toFixed(2))}/5 stars`;
+    return String(Number((value / 2).toFixed(2)));
   }
-  return `${Number(value.toFixed(1))}/10`;
+  return String(Number(value.toFixed(1)));
 }
 
 /**

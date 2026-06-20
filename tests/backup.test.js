@@ -59,6 +59,7 @@ test('migration bootstrap creates current meta and settings', () => {
   assert.equal(migrated.updates['xrt:settings'].navigation.defaultBrowseMode, 'all');
   assert.equal(migrated.updates['xrt:settings'].navigation.showPageNavActions, true);
   assert.equal(migrated.updates['xrt:settings'].navigation.useXkcdStyleLabels, true);
+  assert.equal(migrated.updates['xrt:settings'].ratingDisplay, 'five-star');
 });
 
 test('migration normalizes malformed stored settings', () => {

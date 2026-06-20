@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     mode: ALT_TEXT_MODES.BELOW,
     delaySeconds: 3,
   }),
-  ratingDisplay: RATING_DISPLAY_MODES.HIDDEN,
+  ratingDisplay: RATING_DISPLAY_MODES.FIVE_STAR,
   progressDisplay: PROGRESS_DISPLAY_MODES.BAR,
   navigation: Object.freeze({
     defaultBrowseMode: BROWSE_MODES.ALL,
