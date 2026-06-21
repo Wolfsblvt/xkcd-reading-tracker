@@ -1,4 +1,5 @@
 import { ALT_TEXT_MODES, BROWSE_MODES, KEYBOARD_SHORTCUTS, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES } from '../shared/constants.js';
+import { isSyncWriteRateLimitError } from '../shared/errors.js';
 import { calculateNavigation, getComicUrl, getExplainXkcdUrl } from '../shared/navigation.js';
 import { calculateProgress, getComicState, isValidComicId } from '../shared/comic-state.js';
 import { formatCompactProgressSummary } from '../shared/progress-format.js';
@@ -46,6 +47,9 @@ let comicMutationPending = false;
  * @param {unknown} error
  */
 function logNonFatal(error) {
+  if (isSyncWriteRateLimitError(error)) {
+    return;
+  }
   console.warn('[xkcd tracker]', error);
 }
 

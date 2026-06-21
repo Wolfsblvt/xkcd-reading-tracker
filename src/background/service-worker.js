@@ -1,9 +1,24 @@
-import { BROWSE_MODES, LATEST_COMIC_ALARM, SESSION_TAB_MODE_PREFIX, isChunkKey } from '../shared/constants.js';
+import {
+  BROWSE_MODES,
+  LATEST_COMIC_ALARM,
+  SESSION_TAB_MODE_PREFIX,
+  SYNC_WRITE_FLUSH_ALARM,
+  SYNC_WRITE_REMOVE_MESSAGE,
+  SYNC_WRITE_SET_MESSAGE,
+  isChunkKey,
+} from '../shared/constants.js';
 import { coerceComicId, getFavoriteComicIds, isValidComicId } from '../shared/comic-state.js';
+import { isSyncWriteRateLimitError } from '../shared/errors.js';
 import { createLatestComicCheckPatch } from '../shared/latest-comic.js';
 import { getToolbarBadgeState } from '../shared/toolbar-badge.js';
-import { storageService } from '../storage/storage-service.js';
+import { configureSyncWriteAdapter, storageService } from '../storage/storage-service.js';
 import { metadataCache } from '../storage/metadata-cache.js';
+import {
+  flushBufferedSyncWrites,
+  queueSyncRemove,
+  queueSyncSet,
+  recoverBufferedSyncWrites,
+} from '../storage/sync-write-buffer.js';
 
 const FAVORITE_METADATA_BATCH_SIZE = 50;
 const DEFAULT_ACTION_TITLE = 'xkcd Reading Tracker';
@@ -24,10 +39,18 @@ const ACTION_ICONS = Object.freeze({
 });
 let favoriteMetadataRefreshPromise = null;
 
+configureSyncWriteAdapter({
+  set: queueSyncSet,
+  remove: queueSyncRemove,
+});
+
 /**
  * @param {unknown} error
  */
 function logNonFatal(error) {
+  if (isSyncWriteRateLimitError(error)) {
+    return;
+  }
   console.warn('[xkcd tracker]', error);
 }
 
@@ -286,7 +309,8 @@ function queueFavoriteMetadataRefresh() {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  storageService.ensureStorageReady()
+  recoverBufferedSyncWrites()
+    .then(() => storageService.ensureStorageReady())
     .then(configureLatestComicAlarm)
     .then(checkLatestComic)
     .then(queueFavoriteMetadataRefresh)
@@ -294,7 +318,8 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  storageService.ensureStorageReady()
+  recoverBufferedSyncWrites()
+    .then(() => storageService.ensureStorageReady())
     .then(configureLatestComicAlarm)
     .then(checkLatestComic)
     .then(queueFavoriteMetadataRefresh)
@@ -302,6 +327,10 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === SYNC_WRITE_FLUSH_ALARM) {
+    flushBufferedSyncWrites().catch(logNonFatal);
+    return;
+  }
   if (alarm.name !== LATEST_COMIC_ALARM) {
     return;
   }
@@ -310,6 +339,36 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === SYNC_WRITE_SET_MESSAGE) {
+    const items = message.items && typeof message.items === 'object' && !Array.isArray(message.items)
+      ? message.items
+      : null;
+    if (!items) {
+      sendResponse({ ok: false, error: 'Invalid sync write payload.' });
+      return false;
+    }
+    queueSyncSet(items)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => {
+        logNonFatal(error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    return true;
+  }
+
+  if (message?.type === SYNC_WRITE_REMOVE_MESSAGE) {
+    const keys = Array.isArray(message.keys)
+      ? message.keys.filter((key) => typeof key === 'string')
+      : [];
+    queueSyncRemove(keys)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => {
+        logNonFatal(error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    return true;
+  }
+
   if (message?.type === 'xrt:get-tab-browse-mode') {
     const tabId = sender.tab?.id;
     if (tabId == null) {
@@ -453,4 +512,9 @@ chrome.tabs?.onActivated?.addListener(({ tabId }) => {
 
 chrome.tabs?.onRemoved?.addListener((tabId) => {
   chrome.storage.session.remove(getTabModeKey(tabId)).catch(logNonFatal);
+});
+
+chrome.runtime.onSuspend?.addListener(() => {
+  // Best effort only; the local journal remains authoritative if Chrome stops the worker first.
+  flushBufferedSyncWrites().catch(() => undefined);
 });

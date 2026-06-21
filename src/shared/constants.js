@@ -7,6 +7,7 @@ export const META_KEY = `${STORAGE_PREFIX}meta`;
 export const SETTINGS_KEY = `${STORAGE_PREFIX}settings`;
 export const CHUNK_KEY_PREFIX = `${STORAGE_PREFIX}chunk:`;
 export const LOCAL_METADATA_KEY = `${STORAGE_PREFIX}metadata`;
+export const LOCAL_SYNC_WRITE_BUFFER_KEY = `${STORAGE_PREFIX}sync-write-buffer`;
 export const SESSION_TAB_MODE_PREFIX = `${STORAGE_PREFIX}tab-mode:`;
 export const SESSION_FAVORITES_LIBRARY_KEY = `${STORAGE_PREFIX}favorites-library`;
 
@@ -78,6 +79,10 @@ export const KEYBOARD_SHORTCUTS = Object.freeze({
 });
 
 export const LATEST_COMIC_ALARM = 'xrt:latest-comic-check';
+export const SYNC_WRITE_FLUSH_ALARM = 'xrt:sync-write-flush';
+export const SYNC_WRITE_SET_MESSAGE = 'xrt:queue-sync-set';
+export const SYNC_WRITE_REMOVE_MESSAGE = 'xrt:queue-sync-remove';
+export const SYNC_WRITE_DEBOUNCE_MS = 3000;
 export const DEFAULT_LATEST_CHECK_MINUTES = 360;
 
 /**

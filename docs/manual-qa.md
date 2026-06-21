@@ -23,6 +23,7 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 - Favorite/unfavorite a comic from the injected panel.
 - Set and clear/change ratings for both star and 1-10 rating display modes.
 - Rapidly repeat the same rating and confirm controls settle without duplicate state changes or a full panel/navigation flicker.
+- Rapidly change ratings/read/favorite state for longer than a minute and confirm `chrome://extensions` records no Sync quota error.
 - Confirm read/favorite nav-bar buttons work when enabled.
 - Disable read/favorite nav-bar buttons in settings and confirm xkcd nav bars stop receiving them.
 - Confirm filtered navigation works in all/unread/favorites modes.
@@ -55,6 +56,7 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 - Fetch missing favorite metadata and confirm titles/thumbnails appear.
 - Use bulk marking with `1 - 3`, `1-3`, `1..3`, and invalid/reversed ranges.
 - Confirm settings autosave without jumping to the top of the page.
+- Change several settings quickly and confirm diagnostics briefly reports queued sync changes, then returns to zero after the debounce flush.
 - Confirm light, dark, and system dashboard appearance.
 - Restore default settings and confirm read state, favorites, ratings, continue point, and cached metadata remain intact.
 - Confirm full reset requires `TIME MACHINE` with playful labels and `RESET` with generic labels.
@@ -66,6 +68,8 @@ Use this before publishing a Chrome Web Store update. Automated tests cover the 
 - Reset with backup and reset without backup.
 - Confirm sync storage reset removes tracker data and local metadata cache.
 - Confirm malformed or old settings normalize after reload.
+- Make a change and immediately close its tab; confirm the change remains after reopening the dashboard.
+- Suspend/reload the service worker with a pending journal and confirm the queued change is eventually synchronized.
 
 ## New Comic Badge
 

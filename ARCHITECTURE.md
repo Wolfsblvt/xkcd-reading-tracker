@@ -31,7 +31,7 @@ User-created data is synchronized with `chrome.storage.sync`:
 - extension-page appearance preference
 - keyboard shortcut preference
 
-Public xkcd metadata is cached in `chrome.storage.local` because it is rebuildable and should not consume sync quota. The cache stores metadata fetched from xkcd `info.0.json` endpoints only when needed, including title and image URL data used by the favorites library.
+Public xkcd metadata is cached in `chrome.storage.local` because it is rebuildable and should not consume sync quota. The cache stores metadata fetched from xkcd `info.0.json` endpoints only when needed, including title and image URL data used by the favorites library. Local storage also holds a small durable journal of pending sync changes; it is removed after those changes reach Chrome Sync.
 
 The active browse mode is scoped per tab through `chrome.storage.session`, mediated by the service worker. It is not synchronized because changing a mode in one xkcd tab should not surprise another tab.
 
@@ -62,6 +62,10 @@ Persisted comic entries are compact but still readable:
 `r` means read, `f` means favorite, and `rating` is the canonical 1-10 value. False/null values are omitted.
 
 Chunks currently cover 250 comic IDs each. With only a few thousand xkcd comics, full scans for progress, unread ranges, favorites, and filtered navigation are simple and fast while avoiding one storage read per comic. Chunking keeps writes focused and comfortably below Chrome sync's per-item quota.
+
+Sync writes are routed through the service worker instead of being issued independently by the content script, popup, and dashboard. Each requested change is merged into `xrt:sync-write-buffer` in local storage before the caller is acknowledged. Reads overlay that journal on the last synchronized values, so queued changes are immediately consistent across newly opened extension surfaces.
+
+The worker flushes the consolidated journal after three seconds without another change. A Chrome alarm provides a persistent fallback if Manifest V3 suspends the worker before its timer fires, and startup restores the pending flush. `runtime.onSuspend` makes a best-effort immediate flush, but correctness does not rely on an asynchronous browser-close hook. Chrome Sync rate-limit failures remain queued and retry later without being reported as extension errors; unexpected failures remain visible for diagnosis.
 
 ## Schema Versioning And Migrations
 
@@ -134,7 +138,7 @@ The popup reads storage directly through the shared storage service and asks the
 
 The dashboard is the full management surface. It includes onboarding, overview, statistics, a searchable favorites library, unread ranges, bulk marking, settings, import/export, reset, and diagnostics. The guided onboarding flow can start from the beginning, mark comics read through a chosen number, or mark the user caught up while also collecting the rating, alt-text, auto-read, navigation-action, shortcut, and label preferences that vary most by reader. No setup choice is persisted until the final confirmed apply action; completion stores `onboardingCompletedAt`. The overview shows titled comic links when metadata is available and supports direct hash navigation into sections after async render. Statistics summarize progress, favorites, ratings, averages, and rating distribution without adding more persisted state; aggregate values and the compact stacked histogram follow the selected five-star or 1-10 scale, with favorite and non-favorite counts shown as separate segments. The favorites library can search cached titles or comic numbers, filter rated/unrated favorites, sort by rating/number/title, page through results, show lazy remote thumbnails from xkcd image URLs, reveal delayed viewport-bounded full-size previews, edit ratings inline with the shared rating control, toggle read state, remove favorites, open a random visible favorite, export the current filtered set as CSV, Markdown, or JSON, and request missing xkcd metadata. Settings autosave on change, avoid self-triggered full-page refreshes, and are grouped vertically by category. Navigation settings separate filtered-navigation behavior from optional read/favorite button injection. The page is implemented as simple module-driven DOM rendering, not an internal app framework.
 
-Diagnostics show aggregate state and storage information. The support snapshot intentionally includes metadata, settings, aggregate statistics, and storage usage, but not the full sparse comic-state map.
+Diagnostics show aggregate state and storage information, including the number and timestamp of locally queued sync changes. The support snapshot intentionally includes metadata, settings, aggregate statistics, and storage usage, but not the full sparse comic-state map.
 
 The dashboard supports light, dark, and system appearance. The popup and content-script UI do not use that setting because they should visually follow the xkcd page; the popup uses a page-style snapshot from the active xkcd tab when possible and falls back to system dark/light colors.
 
@@ -167,7 +171,7 @@ Import validates the format and replaces current tracker data. It writes the rep
 
 Settings-only reset writes a fresh copy of the global defaults while preserving comic state, continue point, cached metadata, and session-scoped UI preferences. Full reset removes sync state, local metadata cache, and session-scoped UI state, then reinitializes defaults. The dashboard requires typing `TIME MACHINE` when playful labels are enabled or `RESET` in generic-label mode, and offers both "download backup and reset" and "reset without backup".
 
-The storage service discards writes that would not change comic state, metadata, continue point, or normalized settings. Chrome still enforces its own `storage.sync` write quotas; if deliberate rapid changes exceed the per-minute limit, the service reports an actionable temporary-rate-limit message instead of exposing Chrome's internal quota constant.
+The storage service discards writes that would not change comic state, metadata, continue point, or normalized settings. Remaining writes are durably debounced and batched before reaching `storage.sync`. Chrome's per-minute rate limit therefore pauses the background flush rather than rejecting the user's action or exposing Chrome's internal quota constant.
 
 ## Permissions And Security
 
@@ -198,6 +202,7 @@ Automated tests cover logic that is cheap and valuable to verify outside Chrome:
 - onboarding planning,
 - backup validation,
 - migration bootstrap,
+- buffered sync-write merging and quota classification,
 - manifest smoke checks.
 
 Manual Chrome validation is still required for content-script injection, extension page rendering, service-worker alarms, badge/icon updates, storage-change propagation, active-tab popup behavior, dark-mode inheritance, and real xkcd DOM integration.
@@ -210,7 +215,7 @@ The metadata cache is intentionally lazy. Favorites may initially show comic num
 
 Favorite thumbnails are loaded directly from xkcd image URLs rather than cached in Chrome storage. This avoids sync quota issues, local cache eviction policy, and blob cleanup complexity. Thumbnail caching remains possible later if there is a clear offline or performance reason.
 
-Chrome sync is used as the first sync provider. It is simple and browser-native, but synchronization timing and cross-browser behavior are controlled by Chrome.
+Chrome sync is used as the first sync provider. It is simple and browser-native, but synchronization timing and cross-browser behavior are controlled by Chrome. The local journal protects pending writes from worker suspension, but another device only receives them after Chrome accepts a flush.
 
 ## Future Direction
 

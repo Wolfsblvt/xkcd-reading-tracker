@@ -1,13 +1,17 @@
 import {
   LOCAL_METADATA_KEY,
+  LOCAL_SYNC_WRITE_BUFFER_KEY,
   META_KEY,
   SCHEMA_VERSION,
   SETTINGS_KEY,
+  SYNC_WRITE_REMOVE_MESSAGE,
+  SYNC_WRITE_SET_MESSAGE,
   getChunkIndex,
   getChunkKey,
   isChunkKey,
   isExtensionStorageKey,
 } from '../shared/constants.js';
+import { normalizeSyncWriteError } from '../shared/errors.js';
 import { createBackup, validateBackup } from '../shared/backup.js';
 import { createDefaultSettings, normalizeSettings } from '../shared/defaults.js';
 import {
@@ -19,6 +23,23 @@ import {
   normalizeComicStateMap,
 } from '../shared/comic-state.js';
 import { migrateSyncItems, normalizeMeta } from './migrations.js';
+import { applyBufferedSyncWrites, normalizeSyncWriteBuffer } from './sync-write-buffer-state.js';
+
+const runtimeSyncWriteAdapter = Object.freeze({
+  async set(items) {
+    const response = await chrome.runtime.sendMessage({ type: SYNC_WRITE_SET_MESSAGE, items });
+    if (response?.ok !== true) {
+      throw new Error(response?.error || 'The background sync writer did not accept the change.');
+    }
+  },
+  async remove(keys) {
+    const response = await chrome.runtime.sendMessage({ type: SYNC_WRITE_REMOVE_MESSAGE, keys });
+    if (response?.ok !== true) {
+      throw new Error(response?.error || 'The background sync writer did not accept the removal.');
+    }
+  },
+});
+let syncWriteAdapter = runtimeSyncWriteAdapter;
 
 /**
  * @returns {string}
@@ -28,15 +49,41 @@ function nowIso() {
 }
 
 /**
- * @param {unknown} error
- * @returns {Error}
+ * Uses a direct writer in the service worker and runtime messages elsewhere.
+ * @param {{ set: (items: Record<string, unknown>) => Promise<void>, remove: (keys: string[]) => Promise<void> }} adapter
  */
-function normalizeSyncWriteError(error) {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/MAX_WRITE_OPERATIONS_PER_MINUTE|write operations per minute/i.test(message)) {
-    return new Error('Chrome sync is temporarily rate-limiting changes. Wait about a minute, then try again.');
+export function configureSyncWriteAdapter(adapter) {
+  syncWriteAdapter = adapter;
+}
+
+/**
+ * Reads synced values with locally journaled changes overlaid.
+ * @param {null | string | string[] | Record<string, unknown>} [keys]
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function getBufferedSyncItems(keys = null) {
+  const [stored, local] = await Promise.all([
+    chrome.storage.sync.get(keys),
+    chrome.storage.local.get(LOCAL_SYNC_WRITE_BUFFER_KEY),
+  ]);
+  const buffer = normalizeSyncWriteBuffer(local[LOCAL_SYNC_WRITE_BUFFER_KEY]);
+  if (keys === null) {
+    return applyBufferedSyncWrites(stored, buffer);
   }
-  return error instanceof Error ? error : new Error(message);
+
+  const requestedKeys = new Set(
+    typeof keys === 'string'
+      ? [keys]
+      : Array.isArray(keys)
+        ? keys
+        : Object.keys(keys)
+  );
+  const filteredBuffer = {
+    ...buffer,
+    setItems: Object.fromEntries(Object.entries(buffer.setItems).filter(([key]) => requestedKeys.has(key))),
+    removeKeys: buffer.removeKeys.filter((key) => requestedKeys.has(key)),
+  };
+  return applyBufferedSyncWrites(stored, filteredBuffer);
 }
 
 /**
@@ -45,7 +92,19 @@ function normalizeSyncWriteError(error) {
  */
 async function setSyncItems(items) {
   try {
-    await chrome.storage.sync.set(items);
+    await syncWriteAdapter.set(items);
+  } catch (error) {
+    throw normalizeSyncWriteError(error);
+  }
+}
+
+/**
+ * @param {string[]} keys
+ * @returns {Promise<void>}
+ */
+async function removeSyncItems(keys) {
+  try {
+    await syncWriteAdapter.remove(keys);
   } catch (error) {
     throw normalizeSyncWriteError(error);
   }
@@ -55,7 +114,7 @@ async function setSyncItems(items) {
  * @returns {Promise<void>}
  */
 export async function ensureStorageReady() {
-  const stored = await chrome.storage.sync.get(null);
+  const stored = await getBufferedSyncItems(null);
   const { updates, changed } = migrateSyncItems(stored);
 
   if (changed) {
@@ -88,7 +147,7 @@ function collectComicsFromSyncItems(items) {
  */
 export async function getTrackerSnapshot() {
   await ensureStorageReady();
-  const items = await chrome.storage.sync.get(null);
+  const items = await getBufferedSyncItems(null);
   const meta = normalizeMeta(items[META_KEY]);
   const comics = collectComicsFromSyncItems(items);
   const settings = normalizeSettings(items[SETTINGS_KEY]);
@@ -113,7 +172,7 @@ export async function getTrackerSnapshot() {
  */
 async function getChunkForComic(comicId) {
   const key = getChunkKey(getChunkIndex(comicId));
-  const stored = await chrome.storage.sync.get(key);
+  const stored = await getBufferedSyncItems(key);
   const rawChunk = stored[key] && typeof stored[key] === 'object' ? stored[key] : {};
   return {
     key,
@@ -207,7 +266,7 @@ export async function updateManyComicStates(comicIds, patch) {
   const updates = {};
   for (const [chunkIndex, ids] of grouped) {
     const key = getChunkKey(chunkIndex);
-    const stored = await chrome.storage.sync.get(key);
+    const stored = await getBufferedSyncItems(key);
     const rawChunk = stored[key] && typeof stored[key] === 'object' ? stored[key] : {};
     const chunk = {
       v: SCHEMA_VERSION,
@@ -423,7 +482,7 @@ export async function importBackupReplacingData(backup) {
   }
 
   const data = result.data;
-  const items = await chrome.storage.sync.get(null);
+  const items = await getBufferedSyncItems(null);
   const staleChunkKeys = Object.keys(items).filter((key) => isChunkKey(key));
   const updates = {};
   const chunks = new Map();
@@ -462,7 +521,7 @@ export async function importBackupReplacingData(backup) {
   const replacementChunkKeys = new Set([...chunks.keys()].map(getChunkKey));
   const removeKeys = staleChunkKeys.filter((key) => !replacementChunkKeys.has(key));
   if (removeKeys.length > 0) {
-    await chrome.storage.sync.remove(removeKeys);
+    await removeSyncItems(removeKeys);
   }
   await chrome.storage.local.remove(LOCAL_METADATA_KEY);
 
@@ -473,14 +532,16 @@ export async function importBackupReplacingData(backup) {
  * @returns {Promise<void>}
  */
 export async function resetTrackerData() {
-  const syncItems = await chrome.storage.sync.get(null);
+  const syncItems = await getBufferedSyncItems(null);
   const syncKeys = Object.keys(syncItems).filter(isExtensionStorageKey);
   if (syncKeys.length > 0) {
-    await chrome.storage.sync.remove(syncKeys);
+    await removeSyncItems(syncKeys);
   }
 
   const localItems = await chrome.storage.local.get(null);
-  const localKeys = Object.keys(localItems).filter(isExtensionStorageKey);
+  const localKeys = Object.keys(localItems)
+    .filter(isExtensionStorageKey)
+    .filter((key) => key !== LOCAL_SYNC_WRITE_BUFFER_KEY);
   if (localKeys.length > 0) {
     await chrome.storage.local.remove(localKeys);
   }
@@ -497,14 +558,24 @@ export async function resetTrackerData() {
 }
 
 /**
- * @returns {Promise<{ syncBytes: number | null, localBytes: number | null, syncKeys: number }>}
+ * @returns {Promise<{ syncBytes: number | null, localBytes: number | null, syncKeys: number, pendingSyncChanges: number, pendingSyncUpdatedAt: string | null }>}
  */
 export async function getStorageUsage() {
-  const syncItems = await chrome.storage.sync.get(null);
+  const [syncItems, local] = await Promise.all([
+    getBufferedSyncItems(null),
+    chrome.storage.local.get(LOCAL_SYNC_WRITE_BUFFER_KEY),
+  ]);
+  const buffer = normalizeSyncWriteBuffer(local[LOCAL_SYNC_WRITE_BUFFER_KEY]);
   const syncKeys = Object.keys(syncItems).filter(isExtensionStorageKey);
   const syncBytes = chrome.storage.sync.getBytesInUse ? await chrome.storage.sync.getBytesInUse(syncKeys) : null;
   const localBytes = chrome.storage.local.getBytesInUse ? await chrome.storage.local.getBytesInUse(null) : null;
-  return { syncBytes, localBytes, syncKeys: syncKeys.length };
+  return {
+    syncBytes,
+    localBytes,
+    syncKeys: syncKeys.length,
+    pendingSyncChanges: Object.keys(buffer.setItems).length + buffer.removeKeys.length,
+    pendingSyncUpdatedAt: buffer.updatedAt,
+  };
 }
 
 export const storageService = Object.freeze({

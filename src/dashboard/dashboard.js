@@ -1,5 +1,6 @@
 import { ALT_TEXT_MODES, APPEARANCE_THEMES, BROWSE_MODES, KEYBOARD_SHORTCUTS, META_KEY, PROGRESS_DISPLAY_MODES, RATING_DISPLAY_MODES, SESSION_FAVORITES_LIBRARY_KEY, SETTINGS_KEY } from '../shared/constants.js';
 import { calculateProgress, getFavoriteComicIds, getUnreadComicIds } from '../shared/comic-state.js';
+import { isSyncWriteRateLimitError } from '../shared/errors.js';
 import {
   DEFAULT_FAVORITE_PAGE_SIZE,
   FAVORITE_PAGE_SIZES,
@@ -117,6 +118,9 @@ function showMessage(text, isError = false) {
  * @param {unknown} error
  */
 function logNonFatal(error) {
+  if (isSyncWriteRateLimitError(error)) {
+    return;
+  }
   console.warn('[xkcd tracker]', error);
 }
 
@@ -1660,6 +1664,8 @@ function renderDiagnostics() {
     ['Sync storage bytes', storageUsage?.syncBytes == null ? 'Unknown' : String(storageUsage.syncBytes)],
     ['Local storage bytes', storageUsage?.localBytes == null ? 'Unknown' : String(storageUsage.localBytes)],
     ['Extension sync keys', storageUsage ? String(storageUsage.syncKeys) : 'Unknown'],
+    ['Pending sync changes', storageUsage ? String(storageUsage.pendingSyncChanges) : 'Unknown'],
+    ['Pending sync updated', storageUsage?.pendingSyncUpdatedAt ?? 'None'],
   ];
   const table = element('table');
   const body = element('tbody');
