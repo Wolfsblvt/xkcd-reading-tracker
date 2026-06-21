@@ -6,6 +6,7 @@
 [![Chrome Web Store Rating](https://img.shields.io/chrome-web-store/rating/daemkaclgpcpeekkhnnkleeajbhnbkmd?color=f9ab00&label=rating)](https://chromewebstore.google.com/detail/xkcd-reading-tracker/daemkaclgpcpeekkhnnkleeajbhnbkmd)
 [![release](https://img.shields.io/github/v/release/Wolfsblvt/xkcd-reading-tracker?color=6f42c1&label=release)](https://github.com/Wolfsblvt/xkcd-reading-tracker/releases/latest)
 [![tests](https://github.com/Wolfsblvt/xkcd-reading-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Wolfsblvt/xkcd-reading-tracker/actions/workflows/tests.yml)
+[![unit test coverage](https://codecov.io/gh/Wolfsblvt/xkcd-reading-tracker/graph/badge.svg)](https://codecov.io/gh/Wolfsblvt/xkcd-reading-tracker)
 [![Manifest V3](https://img.shields.io/badge/manifest-v3-4c8eda)](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3)
 [![Chrome 120+](https://img.shields.io/badge/chrome-120%2B-5f6368?logo=googlechrome&logoColor=white)](https://www.google.com/chrome/)
 
@@ -99,6 +100,14 @@ Checks:
 ```powershell
 npm test
 ```
+
+Generate the unit-test coverage report:
+
+```powershell
+npm run test:coverage
+```
+
+Coverage measures the domain and storage modules exercised by Node tests. Browser-only content-script, popup, dashboard, and service-worker glue remains covered by manual Chrome validation.
 
 Build the Chrome Web Store upload package:
 

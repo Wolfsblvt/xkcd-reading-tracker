@@ -10,6 +10,7 @@
     "build": "node tools/package-extension.mjs",
     "package": "node tools/package-extension.mjs",
     "test": "node --test",
+    "test:coverage": "node tools/run-coverage.mjs",
     "check:manifest": "node tests/manifest-smoke.test.js"
   },
   "engines": {

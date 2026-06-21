@@ -205,6 +205,8 @@ Automated tests cover logic that is cheap and valuable to verify outside Chrome:
 - buffered sync-write merging and quota classification,
 - manifest smoke checks.
 
+`npm run test:coverage` uses Node's built-in test coverage and LCOV reporter, with no additional coverage runtime. The main-branch GitHub Actions workflow uploads that report to Codecov using GitHub OIDC. The reported percentage intentionally describes modules exercised by the Node suite; browser-only content-script, popup, dashboard, and service-worker glue is validated manually and is not presented as covered code.
+
 Manual Chrome validation is still required for content-script injection, extension page rendering, service-worker alarms, badge/icon updates, storage-change propagation, active-tab popup behavior, dark-mode inheritance, and real xkcd DOM integration.
 
 ## Trade-Offs
