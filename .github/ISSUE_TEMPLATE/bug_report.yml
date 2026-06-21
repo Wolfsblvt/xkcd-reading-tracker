@@ -1,0 +1,96 @@
+name: Bug report
+description: Report broken or unexpected xkcd Reading Tracker behavior
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Please include enough detail to reproduce it without sharing private browser or account data.
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      description: Find this on chrome://extensions or in the dashboard diagnostics section.
+      placeholder: Paste the installed extension version.
+    validations:
+      required: true
+
+  - type: input
+    id: chrome-version
+    attributes:
+      label: Browser version
+      description: Find this on chrome://version or the equivalent browser version page.
+      placeholder: Paste the full browser version.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation-source
+    attributes:
+      label: Installation source
+      options:
+        - Chrome Web Store
+        - Unpacked development extension
+        - Other Chromium-based browser
+    validations:
+      required: true
+
+  - type: input
+    id: comic-url
+    attributes:
+      label: Affected xkcd page
+      description: Include the comic URL or number when the problem occurs on a specific comic.
+      placeholder: "https://xkcd.com/327/"
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the behavior and when you noticed it.
+      placeholder: Tell us what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest reliable sequence that triggers the problem.
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What should have happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics snapshot
+      description: Optional. Use Dashboard > Diagnostics > Copy support snapshot. It excludes your full comic-state map.
+      render: json
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add screenshots, relevant console errors, or anything else that may help.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
