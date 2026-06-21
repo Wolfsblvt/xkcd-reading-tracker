@@ -15,33 +15,27 @@ Track read, favorite, rated, and unread xkcd comics directly on xkcd.com.
 ```text
 xkcd Reading Tracker is an unofficial browser extension for xkcd. It is not affiliated with, endorsed by, or connected to xkcd or Randall Munroe.
 
-It helps you read through xkcd without losing your place.
+Read through xkcd without losing your place. The extension adds lightweight controls directly to xkcd.com, a compact toolbar popup, and a dashboard for managing your collection.
 
-The extension adds lightweight tracking controls directly to xkcd.com, plus a compact toolbar popup and a full dashboard for managing progress, favorites, ratings, unread ranges, and settings.
+Highlights:
+- Track comics as read or unread and keep a dedicated continue-reading point.
+- Browse all comics, only unread comics, or your favorites using xkcd's familiar navigation.
+- Build a searchable favorites library with thumbnails, ratings, sorting, and filtering.
+- See reading progress, favorite statistics, rating averages, and your rating distribution.
+- Keep reading data in Chrome extension storage and export or restore complete JSON backups.
 
-Features:
-- Mark comics as read or unread.
-- Favorite comics independently from read state.
-- Rate comics with stars or a 1-10 control.
-- Keep a dedicated continue-reading point.
-- Browse all comics, unread comics, or favorites.
-- Add optional read/favorite controls into xkcd's own navigation bar.
-- Enable optional keyboard shortcuts for common comic-page actions.
-- Show xkcd alt text below the comic, instantly or after a delay.
-- Open Explain xkcd from the comic page.
-- Track new xkcd releases with a toolbar badge.
-- Use a muted toolbar icon outside xkcd and a full-color icon on valid comic pages.
-- Run a guided first-time setup to initialize reading progress and choose personal preferences.
-- View reading, favorite, and rating statistics, including a rating distribution split by favorite state.
-- Search, sort, filter, page through, preview, rate, mark read/unread, unfavorite, and open favorite comics from the dashboard.
-- Export filtered favorites as CSV, Markdown, or JSON.
-- View unread ranges and jump directly to range starts or ends.
-- Bulk mark comic numbers or ranges read/unread.
-- Export/import JSON backups.
-- Restore default settings without removing reading data, or fully reset with an optional backup first.
+More features:
+- Rate comics with five-star or 1-10 controls while keeping favorites independent from read state.
+- Add optional read/favorite actions and keyboard shortcuts to xkcd comic pages.
+- Show alt text below the comic immediately or after a delay, and open the matching Explain xkcd page.
+- View unread ranges, jump to their endpoints, and bulk mark comic numbers or ranges.
+- Preview and edit favorites inline, open a random filtered favorite, and export results as CSV, Markdown, or JSON.
+- Track newly published comics with a toolbar badge and active xkcd tabs with a full-color icon.
+- Use guided first-time setup, automatic read marking, configurable navigation, and playful or generic labels.
+- Restore default settings without losing reading data, or fully reset with an optional backup first.
 - Use light, dark, or system appearance for the dashboard.
 
-The extension stores reading state in Chrome extension storage. Rapid changes are queued locally and synchronized through Chrome without being discarded if Chrome temporarily throttles writes. It has no analytics, no account system, no backend server, and no remote code.
+The extension has no analytics, account system, backend server, or remote code. Reading state stays in Chrome extension storage and may synchronize through Chrome when browser sync is enabled.
 ```
 
 ### Screenshot Set
