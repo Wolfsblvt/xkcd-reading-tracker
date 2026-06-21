@@ -28,17 +28,21 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 
 ![Dashboard overview](assets/store/screenshots/03-dashboard-overview.png)
 
+### Favorites Library
+
+![Favorites library](assets/store/screenshots/04-dashboard-favorites.png)
+
 ### Dashboard Settings
 
-![Dashboard settings](assets/store/screenshots/04-dashboard-settings.png)
+![Dashboard settings](assets/store/screenshots/05-dashboard-settings.png)
 
 ### Dashboard Diagnostics
 
-![Dashboard diagnostics](assets/store/screenshots/05-dashboard-diagnostics.png)
+![Dashboard diagnostics](assets/store/screenshots/06-dashboard-diagnostics.png)
 
 ### Dark Mode Support
 
-![Dark mode support](assets/store/screenshots/06-dark-mode-support.png)
+![Dark mode support](assets/store/screenshots/07-dark-mode-support.png)
 
 </details>
 
@@ -67,6 +71,7 @@ It adds restrained controls to comic pages, keeps state in Chrome extension stor
 - Mute the toolbar icon outside detected xkcd comic pages and restore the full-color icon on valid comic tabs.
 - Enable optional keyboard shortcuts on xkcd comic pages.
 - Run a guided first-time setup to initialize reading progress and choose key comic-page preferences.
+- Durably batch synchronized changes so temporary Chrome Sync write throttling does not discard user actions.
 - Use light, dark, or system appearance for the dashboard, while popup and comic-page controls follow xkcd/page styling.
 
 ## Local Installation
@@ -121,8 +126,7 @@ Reading state is stored through Chrome extension storage. Chrome may synchronize
 
 ## Known Limitations
 
-- Browser behavior still needs manual validation after loading or reloading the unpacked extension.
-- The first version is Chrome-focused.
+- The extension is currently Chrome-focused.
 - Favorite titles and thumbnail URLs are cached only as needed, so title search and previews improve after metadata is fetched.
 - Import replaces current data; merge import is future work.
 - Chrome sync is managed by Chrome and may not be immediate or cross-browser.

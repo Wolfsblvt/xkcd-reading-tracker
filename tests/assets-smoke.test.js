@@ -42,9 +42,10 @@ test('store screenshots have Chrome-required dimensions', () => {
     'assets/store/screenshots/01-comic-page.png',
     'assets/store/screenshots/02-popup.png',
     'assets/store/screenshots/03-dashboard-overview.png',
-    'assets/store/screenshots/04-dashboard-settings.png',
-    'assets/store/screenshots/05-dashboard-diagnostics.png',
-    'assets/store/screenshots/06-dark-mode-support.png',
+    'assets/store/screenshots/04-dashboard-favorites.png',
+    'assets/store/screenshots/05-dashboard-settings.png',
+    'assets/store/screenshots/06-dashboard-diagnostics.png',
+    'assets/store/screenshots/07-dark-mode-support.png',
   ]) {
     assert.equal(existsSync(join(root, path)), true, `${path} should exist`);
     assert.deepEqual(getPngDimensions(path), { width: 1280, height: 800 });
