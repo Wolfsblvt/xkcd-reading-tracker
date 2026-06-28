@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -35,6 +35,13 @@ test('generated extension icons have Chrome-required dimensions', () => {
 test('store promo assets have Chrome-required dimensions', () => {
   assert.deepEqual(getPngDimensions('assets/store/promo/small-promo-440x280.png'), { width: 440, height: 280 });
   assert.deepEqual(getPngDimensions('assets/store/promo/marquee-promo-1400x560.png'), { width: 1400, height: 560 });
+});
+
+test('GitHub social preview has recommended dimensions and upload size', () => {
+  const path = 'assets/social/github-social-preview.png';
+  assert.equal(existsSync(join(root, path)), true, `${path} should exist`);
+  assert.deepEqual(getPngDimensions(path), { width: 1280, height: 640 });
+  assert.equal(statSync(join(root, path)).size < 1024 * 1024, true, `${path} should be under 1 MB`);
 });
 
 test('store screenshots have Chrome-required dimensions', () => {

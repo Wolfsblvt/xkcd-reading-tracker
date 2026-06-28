@@ -7,6 +7,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const sourceDir = join(root, 'assets', 'source');
 const iconOutputDir = join(root, 'assets', 'icons');
 const promoOutputDir = join(root, 'assets', 'store', 'promo');
+const socialOutputDir = join(root, 'assets', 'social');
 
 const GENERATED_ASSETS = Object.freeze({
   icons: Object.freeze([
@@ -31,6 +32,15 @@ const GENERATED_ASSETS = Object.freeze({
       output: join(promoOutputDir, 'marquee-promo-1400x560.png'),
       width: 1400,
       height: 560,
+    },
+  ]),
+  socialPreviews: Object.freeze([
+    {
+      source: join(sourceDir, 'marquee_promo.png'),
+      output: join(socialOutputDir, 'github-social-preview.png'),
+      width: 1280,
+      height: 640,
+      background: Object.freeze({ red: 255, green: 255, blue: 255, alpha: 255 }),
     },
   ]),
 });
@@ -389,6 +399,48 @@ function resizeImage(image, targetWidth, targetHeight) {
 
 /**
  * @param {{ width: number, height: number, pixels: Uint8ClampedArray }} image
+ * @param {number} targetWidth
+ * @param {number} targetHeight
+ * @param {{ red: number, green: number, blue: number, alpha: number }} background
+ * @returns {{ width: number, height: number, pixels: Uint8ClampedArray }}
+ */
+function padImage(image, targetWidth, targetHeight, background) {
+  if (image.width > targetWidth || image.height > targetHeight) {
+    throw new Error(`Cannot pad ${image.width}x${image.height} image into ${targetWidth}x${targetHeight}.`);
+  }
+
+  const pixels = new Uint8ClampedArray(targetWidth * targetHeight * 4);
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    pixels[offset] = background.red;
+    pixels[offset + 1] = background.green;
+    pixels[offset + 2] = background.blue;
+    pixels[offset + 3] = background.alpha;
+  }
+
+  const offsetX = Math.floor((targetWidth - image.width) / 2);
+  const offsetY = Math.floor((targetHeight - image.height) / 2);
+  for (let y = 0; y < image.height; y += 1) {
+    const sourceOffset = y * image.width * 4;
+    const targetOffset = ((offsetY + y) * targetWidth + offsetX) * 4;
+    pixels.set(image.pixels.subarray(sourceOffset, sourceOffset + image.width * 4), targetOffset);
+  }
+
+  return { width: targetWidth, height: targetHeight, pixels };
+}
+
+/**
+ * @param {{ width: number, height: number, pixels: Uint8ClampedArray }} image
+ * @param {number} targetWidth
+ * @param {number} targetHeight
+ * @returns {{ width: number, height: number, pixels: Uint8ClampedArray }}
+ */
+function containImage(image, targetWidth, targetHeight) {
+  const scale = Math.min(targetWidth / image.width, targetHeight / image.height);
+  return resizeImage(image, Math.round(image.width * scale), Math.round(image.height * scale));
+}
+
+/**
+ * @param {{ width: number, height: number, pixels: Uint8ClampedArray }} image
  * @returns {{ width: number, height: number, pixels: Uint8ClampedArray }}
  */
 function muteIcon(image) {
@@ -444,6 +496,7 @@ function prettyPath(path) {
 export async function generateAssets({ log = true } = {}) {
   mkdirSync(iconOutputDir, { recursive: true });
   mkdirSync(promoOutputDir, { recursive: true });
+  mkdirSync(socialOutputDir, { recursive: true });
 
   const iconSourcePath = join(sourceDir, 'icon.png');
   const iconSource = centerCrop(decodePng(iconSourcePath), 1, 1);
@@ -468,6 +521,16 @@ export async function generateAssets({ log = true } = {}) {
     }
     if (log) {
       console.log(`Generated ${prettyPath(promo.output)} (${promo.width}x${promo.height}).`);
+    }
+  }
+
+  for (const socialPreview of GENERATED_ASSETS.socialPreviews) {
+    const source = decodePng(socialPreview.source);
+    const contained = containImage(source, socialPreview.width, socialPreview.height);
+    const preview = padImage(contained, socialPreview.width, socialPreview.height, socialPreview.background);
+    writeFileSync(socialPreview.output, encodePng(preview.width, preview.height, preview.pixels));
+    if (log) {
+      console.log(`Generated ${prettyPath(socialPreview.output)} (${socialPreview.width}x${socialPreview.height}).`);
     }
   }
 }

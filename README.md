@@ -123,7 +123,7 @@ Regenerate image assets without packaging:
 npm run assets
 ```
 
-Source artwork lives in `assets/source/`. Generated runtime icons live in `assets/icons/`. Generated Chrome Web Store promo images live in `assets/store/promo/` and are not included in the extension upload zip.
+Source artwork lives in `assets/source/`. Generated runtime icons live in `assets/icons/`. Generated Chrome Web Store promo images live in `assets/store/promo/`. The generated GitHub repository social preview lives in `assets/social/`. Store promo and social preview images are not included in the extension upload zip.
 
 ## Browser Requirements
 
