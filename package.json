@@ -7,11 +7,9 @@
   "description": "A maintainable Chrome MV3 extension for tracking xkcd reading progress.",
   "scripts": {
     "assets": "node tools/generate-assets.mjs",
-    "build": "node tools/package-extension.mjs",
     "package": "node tools/package-extension.mjs",
     "test": "node --test",
-    "test:coverage": "node tools/run-coverage.mjs",
-    "check:manifest": "node tests/manifest-smoke.test.js"
+    "test:coverage": "node tools/run-coverage.mjs"
   },
   "engines": {
     "node": ">=22"

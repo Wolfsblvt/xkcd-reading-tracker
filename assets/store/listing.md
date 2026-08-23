@@ -1,5 +1,7 @@
 # Chrome Web Store Listing Copy
 
+## Meaning
+
 This file keeps the public listing text versioned with the repository. Chrome Web Store form fields remain the source submitted to Google, but this is the copy source for future updates.
 
 ## v1.2.0
