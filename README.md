@@ -92,7 +92,7 @@ Asset regeneration is separate and explicit:
 npm run assets
 ```
 
-Start with [Development](docs/DEVELOPMENT.md), then use [Architecture](docs/ARCHITECTURE.md) for the system shape. [Product Vision](docs/VISION.md) and [Direction](docs/DIRECTION.md) carry the provisional product lens and current next cuts.
+Use the [documentation map](docs/README.md) to find maintained project truth. Start with [Development](docs/DEVELOPMENT.md) for local work and [Architecture](docs/ARCHITECTURE.md) for the system shape; [Product Vision](docs/VISION.md) and [Direction](docs/DIRECTION.md) carry the provisional product lens and current next cuts.
 
 ## License
 

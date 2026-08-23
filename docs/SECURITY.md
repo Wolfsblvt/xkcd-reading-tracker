@@ -58,5 +58,5 @@ The diagnostics snapshot omits the full per-comic state map, but it still includ
 
 - Security depends on Chrome's extension isolation, storage, update, and account model; the extension does not implement separate authentication or cryptography.
 - A compromised or unexpectedly changed xkcd page can influence the DOM and public metadata the extension reads. Narrow host scope, fixed metadata endpoints, local executable code, normalization, and extension-page CSP contain the extension-owned boundary but do not make the host trustworthy by decree.
-- Explain xkcd is currently navigation only. The planned optional permission-backed reading signal in `DIRECTION.md` is not shipped and is not part of the current trust boundary.
+- Explain xkcd is currently navigation only. The planned tracker-owned Explain-action signal in `DIRECTION.md` is not shipped, requests no additional host permission, and is not part of the current trust boundary.
 - Node tests verify manifest and pure data contracts, not live Chrome isolation, CSP enforcement, service-worker lifecycle, or xkcd DOM behavior. `manual-qa.md` owns the corresponding browser checks.

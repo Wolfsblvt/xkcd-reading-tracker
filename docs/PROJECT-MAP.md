@@ -18,7 +18,7 @@ xkcd Reading Tracker is a directly loadable browser extension whose runtime, tes
 | `tests/` | Node tests for domain, storage, manifest, and asset contracts | Fast deterministic checks are separate from browser-only QA. |
 | `tools/` | Explicit asset generation, coverage reporting, and deterministic packaging | Development and release tooling does not become production runtime code. |
 | `assets/` | Source artwork, committed runtime/store outputs, screenshots, listing copy, and social preview | Store and GitHub inputs are versioned without entering the extension ZIP unless allowlisted. |
-| `docs/` | Vision, direction, architecture, data model, security, decisions, development, privacy, release, and manual QA truth | Durable product and maintenance context stays out of the public entry point and source modules. |
+| `docs/` | Documentation map, Vision, direction, architecture, data model, security, decisions, development, privacy, release, manual QA, and dated evidence | Durable product and maintenance context stays navigable without inflating the public entry point or source modules. |
 | `.github/` | GitHub intake and CI configuration | Provider-specific repository behavior remains visible and reviewable. |
 
 ## Entry Points
@@ -30,6 +30,7 @@ xkcd Reading Tracker is a directly loadable browser extension whose runtime, tes
 - **Background:** `src/background/service-worker.js` is the MV3 module service worker.
 - **Tests:** `npm test`.
 - **Release package:** `npm run package`.
+- **Documentation:** `docs/README.md`.
 
 ## Layout Decisions Worth Keeping
 

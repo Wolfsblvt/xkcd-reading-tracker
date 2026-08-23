@@ -22,7 +22,7 @@ This file carries the repository-local facts and working boundaries needed to ch
 
 ## Documentation
 
-- This is a Level 2 maintained executable repository.
+- This is a Level 3 maintained executable repository; `docs/README.md` is the documentation map.
 - `docs/VISION.md` carries durable product purpose. `docs/DIRECTION.md` temporarily carries current product direction.
 - `docs/ARCHITECTURE.md` describes current shipped structure, never a speculative feature wishlist.
 - Maintained Markdown documentation other than the root `README.md` begins with a `## Meaning` section. `LICENSE` retains its legal bytes.
