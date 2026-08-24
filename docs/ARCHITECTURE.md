@@ -1,5 +1,11 @@
 # Architecture
 
+## Meaning
+
+This document owns the extension's current runtime components, data flow, and integration boundaries. It summarizes storage only where it participates in those flows; [Data Model](DATA-MODEL.md) owns the exact persisted records, invariants, schema, and compatibility rules. It exists so cross-file runtime decisions can be recovered without reverse-engineering the whole source tree; planned product work belongs in `DIRECTION.md`, not here.
+
+## System Shape
+
 This is a directly loadable Manifest V3 Chrome extension. Production code is plain JavaScript, HTML, and CSS with no bundler, UI framework, runtime dependencies, backend, analytics, or remote code.
 
 The extension augments xkcd rather than replacing it. The xkcd page remains the primary reading surface; the popup is for quick actions; the dashboard/options page is for management.
@@ -39,48 +45,13 @@ Favorites library preferences for sort mode, rating filter, and page size are al
 
 The extension deliberately avoids browser `localStorage`; Chrome documents that content scripts share Web Storage with the host page and extension service workers cannot use it.
 
-## Storage Model
+## Persisted Data Model
 
-The synchronized keyspace uses the `xrt:` prefix:
+`src/storage/storage-service.js` is the application persistence boundary. It presents one normalized tracker snapshot to the content script, popup, dashboard, and service worker while keeping synchronized user state, rebuildable local metadata, pending delivery state, and session-only preferences distinct.
 
-- `xrt:meta` stores schema version, timestamps, latest known comic, latest check time, new-comic acknowledgement, continue point, and onboarding completion time.
-- `xrt:settings` stores synchronized settings.
-- `xrt:chunk:<index>` stores sparse comic state for a bounded comic ID range.
+Sync writes are routed through the service worker. Each change is journaled locally before its caller is acknowledged, and reads overlay that journal on Chrome Sync until the serialized writer flushes it. A debounce handles ordinary batching; a Chrome alarm and startup recovery cover service-worker suspension. Rate-limit failures stay queued for retry.
 
-Comic chunks contain only user-created sparse state. Missing state means unread, not favorite, and unrated.
-
-Persisted comic entries are compact but still readable:
-
-```json
-{
-  "r": 1,
-  "f": 1,
-  "rating": 8
-}
-```
-
-`r` means read, `f` means favorite, and `rating` is the canonical 1-10 value. False/null values are omitted.
-
-Chunks currently cover 250 comic IDs each. With only a few thousand xkcd comics, full scans for progress, unread ranges, favorites, and filtered navigation are simple and fast while avoiding one storage read per comic. Chunking keeps writes focused and comfortably below Chrome sync's per-item quota.
-
-Sync writes are routed through the service worker instead of being issued independently by the content script, popup, and dashboard. Each requested change is merged into `xrt:sync-write-buffer` in local storage before the caller is acknowledged. Reads overlay that journal on the last synchronized values, so queued changes are immediately consistent across newly opened extension surfaces.
-
-The worker flushes the consolidated journal after three seconds without another change. A Chrome alarm provides a persistent fallback if Manifest V3 suspends the worker before its timer fires, and startup restores the pending flush. `runtime.onSuspend` makes a best-effort immediate flush, but correctness does not rely on an asynchronous browser-close hook. Chrome Sync rate-limit failures remain queued and retry later without being reported as extension errors; unexpected failures remain visible for diagnosis.
-
-## Schema Versioning And Migrations
-
-Persistent data uses schema version `1`.
-
-Migration and normalization live in `src/storage/migrations.js`. There are no historical production schemas yet, but the bootstrap path is explicit and idempotent:
-
-- missing metadata is initialized,
-- settings are normalized against defaults,
-- chunks are normalized to current version,
-- unsupported newer schemas throw instead of silently corrupting data.
-
-The storage service calls migration before returning snapshots so UI code does not receive obviously stale storage.
-
-Backup import currently supports the current backup/schema version only. Older formats can be added to `validateBackup` and the migration module without changing UI code.
+[Data Model](DATA-MODEL.md) owns the exact keys, record shapes, invariants, schema/bootstrap behavior, and backup/import/reset compatibility boundary.
 
 ## Comic Validity
 
@@ -154,36 +125,11 @@ Opening the new comic, marking it read, or explicitly acknowledging it clears th
 
 ## Import, Export, And Reset
 
-Export creates a JSON backup with:
+The dashboard exposes backup export, validated replacement import, settings reset, and full reset. It requires typed confirmation for full reset and offers a backup-first path. [Data Model](DATA-MODEL.md) owns the exact backup contents, replacement ordering, record effects, and compatibility rules.
 
-- format identifier,
-- backup version,
-- extension version,
-- schema version,
-- export timestamp,
-- selected metadata,
-- settings,
-- sparse comic state.
+## Permissions And Trust Boundaries
 
-Rebuildable local xkcd metadata is intentionally excluded.
-
-Import validates the format and replaces current tracker data. It writes the replacement data before removing stale old chunks where possible. Merge import is deferred because it needs deliberate conflict semantics.
-
-Settings-only reset writes a fresh copy of the global defaults while preserving comic state, continue point, cached metadata, and session-scoped UI preferences. Full reset removes sync state, local metadata cache, and session-scoped UI state, then reinitializes defaults. The dashboard requires typing `TIME MACHINE` when playful labels are enabled or `RESET` in generic-label mode, and offers both "download backup and reset" and "reset without backup".
-
-The storage service discards writes that would not change comic state, metadata, continue point, or normalized settings. Remaining writes are durably debounced and batched before reaching `storage.sync`. Chrome's per-minute rate limit therefore pauses the background flush rather than rejecting the user's action or exposing Chrome's internal quota constant.
-
-## Permissions And Security
-
-Permissions are intentionally narrow:
-
-- `storage` for sync/local/session extension state,
-- `alarms` for latest-comic checks,
-- host access only for `https://xkcd.com/*` and `https://www.xkcd.com/*`.
-
-The extension does not request browsing history, broad host access, OAuth, downloads, notifications, or Explain xkcd permissions. Explain xkcd is opened as a normal user-facing link.
-
-The manifest uses local executable files only. There is no remote JavaScript and no analytics. Extension-page CSP allows xkcd image thumbnails from `https://imgs.xkcd.com`; those images are displayed lazily and are not stored as blobs in extension storage.
+The runtime is limited to extension storage, alarms, and the two xkcd HTTPS host patterns. It ships local executable files, does not request browsing history or broad host access, and does not execute remote code. [Security](SECURITY.md) owns the exact permission, content-security-policy, input-validation, trust, and vulnerability-reporting boundary.
 
 ## Testing Strategy
 
@@ -205,7 +151,9 @@ Automated tests cover logic that is cheap and valuable to verify outside Chrome:
 - buffered sync-write merging and quota classification,
 - manifest smoke checks.
 
-`npm run test:coverage` uses Node's built-in test coverage and LCOV reporter, with no additional coverage runtime. The main-branch GitHub Actions workflow uploads that report to Codecov using GitHub OIDC. The reported percentage intentionally describes modules exercised by the Node suite; browser-only content-script, popup, dashboard, and service-worker glue is validated manually and is not presented as covered code.
+`npm run test:coverage` uses Node's built-in test coverage and LCOV reporter, with no additional coverage runtime. The main-branch GitHub Actions workflow uploads that report to Codecov using GitHub OIDC as informational reporting; an upload outage does not invalidate tests or packaging. The reported percentage intentionally describes modules exercised by the Node suite; browser-only content-script, popup, dashboard, and service-worker glue is validated manually and is not presented as covered code.
+
+`npm run package` consumes the committed runtime assets and writes a deterministic, allowlisted ZIP under `dist/`. Asset regeneration is an explicit `npm run assets` operation so packaging does not rewrite tracked source-tree files.
 
 Manual Chrome validation is still required for content-script injection, extension page rendering, service-worker alarms, badge/icon updates, storage-change propagation, active-tab popup behavior, dark-mode inheritance, and real xkcd DOM integration.
 
@@ -218,24 +166,6 @@ The metadata cache is intentionally lazy. Favorites may initially show comic num
 Favorite thumbnails are loaded directly from xkcd image URLs rather than cached in Chrome storage. This avoids sync quota issues, local cache eviction policy, and blob cleanup complexity. Thumbnail caching remains possible later if there is a clear offline or performance reason.
 
 Chrome sync is used as the first sync provider. It is simple and browser-native, but synchronization timing and cross-browser behavior are controlled by Chrome. The local journal protects pending writes from worker suspension, but another device only receives them after Chrome accepts a flush.
-
-## Future Direction
-
-Possible future work:
-
-- Google Drive application-data sync,
-- cross-browser support,
-- Firefox port,
-- merge-mode import,
-- conflict resolution for external sync,
-- tags,
-- personal notes,
-- recently favorited timestamps,
-- thumbnail caching,
-- optional notifications,
-- imports from other xkcd extensions.
-
-Google Drive sync is not a drop-in replacement for Chrome sync. A future provider would need to handle concurrent edits, revisions, merge behavior, offline changes, last-write-wins risks, device identity, authentication lifecycle, and cross-browser behavior.
 
 ## Non-Goals
 

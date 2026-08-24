@@ -1247,7 +1247,6 @@ export async function initXkcdTracker() {
   await loadBrowseMode();
   addMessageHandlers();
   addKeyboardHandlers();
-  await reportComicPageDetected();
 
   if (snapshot?.meta.lastNewComicId && currentComic.id >= snapshot.meta.lastNewComicId) {
     await runLocalSyncWrite(async () => {

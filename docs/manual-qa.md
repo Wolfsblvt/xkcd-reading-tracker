@@ -1,6 +1,8 @@
 # Manual QA Checklist
 
-Use this before publishing a Chrome Web Store update. Automated tests cover the pure logic and packaging shape; this checklist covers Chrome behavior that needs a real browser.
+## Meaning
+
+Use this release checklist before publishing a Chrome Web Store update. Node tests cover domain and storage behavior plus static manifest and asset contracts; packaging verifies the upload archive allowlist. This document owns the browser-only and Store-draft checks that still require a real Chrome session.
 
 ## Fresh Install
 

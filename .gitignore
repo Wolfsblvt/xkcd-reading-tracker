@@ -2,7 +2,7 @@ node_modules/
 coverage/
 .nyc_output/
 dist/
-.prompts/
+/artifacts/
 *.log
 *.tmp
 *.zip
